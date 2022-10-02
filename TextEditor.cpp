@@ -646,7 +646,7 @@ void TextEditor::RemoveLines(int aStart, int aEnd)
 	OnLinesDeleted(aStart, aEnd);
 }
 
-void TextEditor::RemoveLine(int aIndex)
+void TextEditor::RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors)
 {
 	assert(!mReadOnly);
 	assert(mLines.size() > 1);
@@ -675,7 +675,7 @@ void TextEditor::RemoveLine(int aIndex)
 
 	mTextChanged = true;
 
-	OnLineDeleted(aIndex);
+	OnLineDeleted(aIndex, aHandledCursors);
 }
 
 void TextEditor::RemoveCurrentLines()
@@ -703,26 +703,26 @@ void TextEditor::RemoveCurrentLines()
 		{
 			toDeleteStart = Coordinates(currentLine, 0);
 			toDeleteEnd = Coordinates(nextLine, 0);
-			mState.mCursors[c].mCursorPosition.mColumn = 0;
+			SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine, 0 }, c);
 		}
 		else if (prevLine > -1) // previous line exists
 		{
 			toDeleteStart = Coordinates(prevLine, GetLineMaxColumn(prevLine));
 			toDeleteEnd = Coordinates(currentLine, GetLineMaxColumn(currentLine));
-			mState.mCursors[c].mCursorPosition.mLine--;
-			mState.mCursors[c].mCursorPosition.mColumn = 0;
+			SetCursorPosition({ prevLine, 0 }, c);
 		}
 		else
 		{
 			toDeleteStart = Coordinates(currentLine, 0);
 			toDeleteEnd = Coordinates(currentLine, GetLineMaxColumn(currentLine));
-			mState.mCursors[c].mCursorPosition.mColumn = 0;
+			SetCursorPosition({ currentLine, 0 }, c);
 		}
 
 		u.mRemoved.push_back({ GetText(toDeleteStart, toDeleteEnd), toDeleteStart, toDeleteEnd });
 
+		std::unordered_set<int> handledCursors = { c };
 		if (toDeleteStart.mLine != toDeleteEnd.mLine)
-			RemoveLine(currentLine);
+			RemoveLine(currentLine, &handledCursors);
 		else
 			DeleteRange(toDeleteStart, toDeleteEnd);
 	}
@@ -851,7 +851,7 @@ ImU32 TextEditor::GetGlyphColor(const Glyph & aGlyph) const
 
 void TextEditor::HandleKeyboardInputs()
 {
-	if (ImGui::IsWindowFocused() || ImGui::IsRootWindowFocused())
+	if (ImGui::IsWindowFocused())
 	{
 		if (ImGui::IsWindowHovered())
 			ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
@@ -906,7 +906,7 @@ void TextEditor::HandleKeyboardInputs()
 			Delete(ctrl);
 		else if (!IsReadOnly() && !alt && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
 			Backspace(ctrl);
-		else if (!IsReadOnly() && !alt && ctrl && shift && !super && ImGui::IsKeyPressed('K'))
+		else if (!IsReadOnly() && !alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_K)))
 			RemoveCurrentLines();
 		else if (!alt && !ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			mOverwrite ^= true;
@@ -1183,7 +1183,7 @@ void TextEditor::Render()
 			}
 			if (cursorCoordsInThisLine.size() > 0)
 			{
-				auto focused = ImGui::IsWindowFocused() || ImGui::IsRootWindowFocused();
+				auto focused = ImGui::IsWindowFocused();
 
 				// Render the cursors
 				if (focused)
@@ -1359,7 +1359,8 @@ void TextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
 	{
 		if (mState.mCursors[c].mCursorPositionChanged)
 			OnCursorPositionChanged(c);
-		mState.mCursors[c].mCursorPositionChanged = false;
+		if (c <= mState.mCurrentCursor)
+			mState.mCursors[c].mCursorPositionChanged = false;
 	}
 
 	mWithinRender = true;
@@ -1560,7 +1561,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 	} // HasSelection
 
 	std::vector<Coordinates> coords;
-	for (int c = 0; c <= mState.mCurrentCursor; c++) // order important here for typing tabs in the same line at the same time
+	for (int c = mState.mCurrentCursor; c > -1; c--) // order important here for typing \n in the same line at the same time
 	{
 		auto coord = GetActualCursorCoordinates(c);
 		coords.push_back(coord);
@@ -2197,6 +2198,7 @@ void TextEditor::Backspace(bool aWordMode)
 				auto& prevLine = mLines[prevLineIndex];
 				auto prevSize = GetLineMaxColumn(prevLineIndex);
 				AddGlyphsToLine(prevLineIndex, prevLine.size(), line.begin(), line.end());
+				std::unordered_set<int> cursorsHandled = { c };
 				for (int otherCursor = c + 1;
 					otherCursor <= mState.mCurrentCursor && mState.mCursors[otherCursor].mCursorPosition.mLine == mState.mCursors[c].mCursorPosition.mLine;
 					otherCursor++) // move up cursors in same line
@@ -2205,6 +2207,7 @@ void TextEditor::Backspace(bool aWordMode)
 					int otherCursorNewCharIndex = GetCharacterIndex({ prevLineIndex, prevSize }) + otherCursorCharIndex;
 					auto targetCoords = Coordinates(prevLineIndex, GetCharacterColumn(prevLineIndex, otherCursorNewCharIndex));
 					SetCursorPosition(targetCoords, otherCursor);
+					cursorsHandled.insert(otherCursor);
 				}
 
 				ErrorMarkers etmp;
@@ -2212,10 +2215,8 @@ void TextEditor::Backspace(bool aWordMode)
 					etmp.insert(ErrorMarkers::value_type(i.first - 1 == mState.mCursors[c].mCursorPosition.mLine ? i.first - 1 : i.first, i.second));
 				mErrorMarkers = std::move(etmp);
 
-				RemoveLine(mState.mCursors[c].mCursorPosition.mLine);
-				--mState.mCursors[c].mCursorPosition.mLine;
-				mState.mCursors[c].mCursorPosition.mColumn = prevSize;
-				mState.mCursors[c].mCursorPositionChanged = true;
+				RemoveLine(mState.mCursors[c].mCursorPosition.mLine, &cursorsHandled);
+				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - 1, prevSize }, c);
 			}
 			else
 			{

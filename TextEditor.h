@@ -234,12 +234,15 @@ public:
 	Coordinates GetCursorPosition() const { return GetActualCursorCoordinates(); }
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1);
 
-	inline void OnLineDeleted(int lineNumber)
+	inline void OnLineDeleted(int aLineIndex, const std::unordered_set<int>* aHandledCursors = nullptr)
 	{
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
-			if (mState.mCursors[c].mCursorPosition.mLine > lineNumber)
-				mState.mCursors[c].mCursorPosition.mLine--;
+			if (mState.mCursors[c].mCursorPosition.mLine >= aLineIndex)
+			{
+				if (aHandledCursors == nullptr || aHandledCursors->find(c) == aHandledCursors->end()) // move up if has not been handled already
+					SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - 1, mState.mCursors[c].mCursorPosition.mColumn }, c);
+			}
 		}
 	}
 	inline void OnLinesDeleted(int aFirstLineIndex, int aLastLineIndex)
@@ -247,15 +250,15 @@ public:
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			if (mState.mCursors[c].mCursorPosition.mLine >= aFirstLineIndex)
-				mState.mCursors[c].mCursorPosition.mLine -= aLastLineIndex - aFirstLineIndex;
+				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex), mState.mCursors[c].mCursorPosition.mColumn}, c);
 		}
 	}
 	inline void OnLineAdded(int aLineIndex)
 	{
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
-			if (mState.mCursors[c].mCursorPosition.mLine > aLineIndex)
-				mState.mCursors[c].mCursorPosition.mLine++;
+			if (mState.mCursors[c].mCursorPosition.mLine >= aLineIndex)
+				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine + 1, mState.mCursors[c].mCursorPosition.mColumn }, c);
 		}
 	}
 
@@ -396,7 +399,7 @@ public:
 	int GetLineMaxColumn(int aLine) const;
 	bool IsOnWordBoundary(const Coordinates& aAt) const;
 	void RemoveLines(int aStart, int aEnd);
-	void RemoveLine(int aIndex);
+	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
 	void RemoveCurrentLines();
 	void OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int aCharCount, bool aDeleted);
 	void RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar = -1);
