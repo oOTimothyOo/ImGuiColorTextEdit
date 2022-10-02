@@ -849,9 +849,9 @@ ImU32 TextEditor::GetGlyphColor(const Glyph & aGlyph) const
 	return color;
 }
 
-void TextEditor::HandleKeyboardInputs()
+void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 {
-	if (ImGui::IsWindowFocused())
+	if (ImGui::IsWindowFocused() || aParentIsFocused)
 	{
 		if (ImGui::IsWindowHovered())
 			ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
@@ -1070,7 +1070,7 @@ void TextEditor::UpdatePalette()
 	}
 }
 
-void TextEditor::Render()
+void TextEditor::Render(bool aParentIsFocused)
 {
 	/* Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)*/
 	const float fontSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
@@ -1183,7 +1183,7 @@ void TextEditor::Render()
 			}
 			if (cursorCoordsInThisLine.size() > 0)
 			{
-				auto focused = ImGui::IsWindowFocused();
+				auto focused = ImGui::IsWindowFocused() || aParentIsFocused;
 
 				// Render the cursors
 				if (focused)
@@ -1353,7 +1353,7 @@ void TextEditor::Render()
 	}
 }
 
-void TextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
+void TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
 {
 	for (int c = 0; c <= mState.mCurrentCursor; c++)
 	{
@@ -1375,7 +1375,7 @@ void TextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
 
 	if (mHandleKeyboardInputs)
 	{
-		HandleKeyboardInputs();
+		HandleKeyboardInputs(aParentIsFocused);
 		ImGui::PushAllowKeyboardFocus(true);
 	}
 
@@ -1383,7 +1383,7 @@ void TextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
 		HandleMouseInputs();
 
 	ColorizeInternal();
-	Render();
+	Render(aParentIsFocused);
 
 	if (mHandleKeyboardInputs)
 		ImGui::PopAllowKeyboardFocus();

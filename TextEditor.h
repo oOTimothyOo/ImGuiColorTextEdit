@@ -208,7 +208,7 @@ public:
 	void SetErrorMarkers(const ErrorMarkers& aMarkers) { mErrorMarkers = aMarkers; }
 	void SetBreakpoints(const Breakpoints& aMarkers) { mBreakpoints = aMarkers; }
 
-	void Render(const char* aTitle, const ImVec2& aSize = ImVec2(), bool aBorder = false);
+	void Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
 	void SetText(const std::string& aText);
 	std::string GetText() const;
 
@@ -413,10 +413,10 @@ public:
 	std::string GetWordAt(const Coordinates& aCoords) const;
 	ImU32 GetGlyphColor(const Glyph& aGlyph) const;
 
-	void HandleKeyboardInputs();
+	void HandleKeyboardInputs(bool aParentIsFocused = false);
 	void HandleMouseInputs();
 	void UpdatePalette();
-	void Render();
+	void Render(bool aParentIsFocused = false);
 
 	float mLineSpacing;
 	Lines mLines;
