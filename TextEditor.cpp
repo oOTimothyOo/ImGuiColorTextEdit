@@ -1720,6 +1720,7 @@ void TextEditor::SetSelection(const Coordinates& aStart, const Coordinates& aEnd
 	{
 	case TextEditor::SelectionMode::Normal:
 	case TextEditor::SelectionMode::Word:
+		mState.mCursors[aCursor].mCursorPosition = mState.mCursors[aCursor].mSelectionEnd;
 		break;
 	case TextEditor::SelectionMode::Line:
 	{
