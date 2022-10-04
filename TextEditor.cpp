@@ -1650,6 +1650,7 @@ void TextEditor::OnCursorPositionChanged(int aCursor)
 	if (mDraggingSelection)
 		return;
 
+	//std::cout << "Cursor position changed\n";
 	// sort from cursors from top to bottom
 	std::sort(mState.mCursors.begin(), mState.mCursors.begin() + (mState.mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
 		{
@@ -1667,6 +1668,9 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor)
 {
 	if (aCursor == -1)
 		aCursor = mState.mCurrentCursor;
+	
+	//std::string log = "Moved cursor " + std::to_string(aCursor) + " from " +
+	//	std::to_string(mState.mCursors[aCursor].mCursorPosition.mLine) + "," + std::to_string(mState.mCursors[aCursor].mCursorPosition.mColumn) + " to ";
 
 	if (mState.mCursors[aCursor].mCursorPosition != aPosition)
 	{
@@ -1674,6 +1678,9 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor)
 		mState.mCursors[aCursor].mCursorPositionChanged = true;
 		EnsureCursorVisible();
 	}
+
+	//log += std::to_string(mState.mCursors[aCursor].mCursorPosition.mLine) + "," + std::to_string(mState.mCursors[aCursor].mCursorPosition.mColumn);
+	//std::cout << log << std::endl;
 }
 
 void TextEditor::SetSelectionStart(const Coordinates& aPosition, int aCursor)
