@@ -1720,7 +1720,6 @@ void TextEditor::SetSelection(const Coordinates& aStart, const Coordinates& aEnd
 	{
 	case TextEditor::SelectionMode::Normal:
 	case TextEditor::SelectionMode::Word:
-		mState.mCursors[aCursor].mCursorPosition = mState.mCursors[aCursor].mSelectionEnd;
 		break;
 	case TextEditor::SelectionMode::Line:
 	{
@@ -2294,7 +2293,7 @@ void TextEditor::SelectWordUnderCursor()
 
 void TextEditor::SelectAll()
 {
-	SetSelection(Coordinates(0, 0), Coordinates((int)mLines.size(), 0));
+	SetSelection(Coordinates(0, 0), Coordinates((int)mLines.size(), 0), SelectionMode::Line);
 }
 
 bool TextEditor::HasSelection() const
