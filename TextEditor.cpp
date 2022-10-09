@@ -2072,24 +2072,21 @@ void TextEditor::MoveHome(bool aSelect)
 		auto oldPos = mState.mCursors[c].mCursorPosition;
 		SetCursorPosition(Coordinates(mState.mCursors[c].mCursorPosition.mLine, 0), c);
 
-		if (mState.mCursors[c].mCursorPosition != oldPos)
+		if (aSelect)
 		{
-			if (aSelect)
-			{
-				if (oldPos == mState.mCursors[c].mInteractiveStart)
-					mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
-				else if (oldPos == mState.mCursors[c].mInteractiveEnd)
-					mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
-				else
-				{
-					mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
-					mState.mCursors[c].mInteractiveEnd = oldPos;
-				}
-			}
+			if (oldPos == mState.mCursors[c].mInteractiveStart)
+				mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
+			else if (oldPos == mState.mCursors[c].mInteractiveEnd)
+				mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
 			else
-				mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
-			SetSelection(mState.mCursors[c].mInteractiveStart, mState.mCursors[c].mInteractiveEnd, SelectionMode::Normal, c);
+			{
+				mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
+				mState.mCursors[c].mInteractiveEnd = oldPos;
+			}
 		}
+		else
+			mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
+		SetSelection(mState.mCursors[c].mInteractiveStart, mState.mCursors[c].mInteractiveEnd, SelectionMode::Normal, c);
 	}
 }
 
@@ -2100,24 +2097,21 @@ void TextEditor::MoveEnd(bool aSelect)
 		auto oldPos = mState.mCursors[c].mCursorPosition;
 		SetCursorPosition(Coordinates(mState.mCursors[c].mCursorPosition.mLine, GetLineMaxColumn(oldPos.mLine)), c);
 
-		if (mState.mCursors[c].mCursorPosition != oldPos)
+		if (aSelect)
 		{
-			if (aSelect)
-			{
-				if (oldPos == mState.mCursors[c].mInteractiveEnd)
-					mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
-				else if (oldPos == mState.mCursors[c].mInteractiveStart)
-					mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
-				else
-				{
-					mState.mCursors[c].mInteractiveStart = oldPos;
-					mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
-				}
-			}
+			if (oldPos == mState.mCursors[c].mInteractiveEnd)
+				mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
+			else if (oldPos == mState.mCursors[c].mInteractiveStart)
+				mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mCursorPosition;
 			else
-				mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
-			SetSelection(mState.mCursors[c].mInteractiveStart, mState.mCursors[c].mInteractiveEnd, SelectionMode::Normal, c);
+			{
+				mState.mCursors[c].mInteractiveStart = oldPos;
+				mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
+			}
 		}
+		else
+			mState.mCursors[c].mInteractiveStart = mState.mCursors[c].mInteractiveEnd = mState.mCursors[c].mCursorPosition;
+		SetSelection(mState.mCursors[c].mInteractiveStart, mState.mCursors[c].mInteractiveEnd, SelectionMode::Normal, c);
 	}
 }
 
