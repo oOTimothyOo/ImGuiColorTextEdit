@@ -2188,8 +2188,6 @@ void TextEditor::Delete(bool aWordMode)
 					Coordinates start = GetActualCursorCoordinates(c);
 					Coordinates end = start;
 					end.mColumn++;
-					if (GetText(start, end).compare("\n") == 0)
-						std::cout << "asdf\n";
 					u.mRemoved.push_back({ GetText(start, end), start, end });
 
 					auto d = UTF8CharLength(line[cindex].mChar);
