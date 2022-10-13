@@ -323,7 +323,7 @@ public:
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
 
-public:
+private:
 	typedef std::vector<std::pair<std::regex, PaletteIndex>> RegexList;
 
 	struct Cursor
@@ -336,11 +336,10 @@ public:
 		bool mCursorPositionChanged = false;
 	};
 
-	//typedef std::vector<Cursor> EditorState;
 	struct EditorState
 	{
 		int mCurrentCursor = 0;
-		std::vector<Cursor> mCursors = { {{0,0}, {0,0}, {0,0}, {0,0}} };
+		std::vector<Cursor> mCursors = { {{0,0}} };
 		void AddCursor()
 		{
 			mCurrentCursor++;
