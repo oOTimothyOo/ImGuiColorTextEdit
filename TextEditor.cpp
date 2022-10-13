@@ -1469,6 +1469,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 		{
 			if (aChar == '\t' && mState.mCursors[c].mSelectionStart.mLine != mState.mCursors[c].mSelectionEnd.mLine)
 			{
+				//	indent left and right functionality
 				auto start = mState.mCursors[c].mSelectionStart;
 				auto end = mState.mCursors[c].mSelectionEnd;
 				auto originalEnd = end;
@@ -1550,7 +1551,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 					EnsureCursorVisible();
 				}
 
-				return;
+				continue;
 			} // c == '\t'
 			else
 			{
@@ -1622,7 +1623,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 				SetCursorPosition(Coordinates(coord.mLine, GetCharacterColumn(coord.mLine, cindex)), c);
 			}
 			else
-				return;
+				continue;
 		}
 
 		mTextChanged = true;
@@ -1995,7 +1996,7 @@ void TextEditor::MoveRight(int aAmount, bool aSelect, bool aWordMode)
 						mState.mCursors[c].mCursorPosition.mColumn = 0;
 					}
 					else
-						return;
+						continue;
 				}
 				else
 				{
@@ -2146,7 +2147,7 @@ void TextEditor::Delete(bool aWordMode)
 			if (pos.mColumn == GetLineMaxColumn(pos.mLine))
 			{
 				if (pos.mLine == (int)mLines.size() - 1)
-					return;
+					continue;
 
 				Coordinates startCoords = GetActualCursorCoordinates(c);
 				Coordinates endCoords = startCoords;
@@ -2229,7 +2230,7 @@ void TextEditor::Backspace(bool aWordMode)
 			if (mState.mCursors[c].mCursorPosition.mColumn == 0)
 			{
 				if (mState.mCursors[c].mCursorPosition.mLine == 0)
-					return;
+					continue;
 
 				Coordinates startCoords = Coordinates(pos.mLine - 1, GetLineMaxColumn(pos.mLine - 1));
 				Coordinates endCoords = startCoords;
