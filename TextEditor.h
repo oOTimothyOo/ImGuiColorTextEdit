@@ -325,6 +325,7 @@ public:
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
 
+	void ImGuiDebugPanel();
 private:
 	typedef std::vector<std::pair<std::regex, PaletteIndex>> RegexList;
 
