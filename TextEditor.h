@@ -159,7 +159,7 @@ public:
 	{
 		typedef std::pair<std::string, PaletteIndex> TokenRegexString;
 		typedef std::vector<TokenRegexString> TokenRegexStrings;
-		typedef bool(*TokenizeCallback)(const char * in_begin, const char * in_end, const char *& out_begin, const char *& out_end, PaletteIndex & paletteIndex);
+		typedef bool(*TokenizeCallback)(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex);
 
 		std::string mName;
 		Keywords mKeywords;
@@ -252,7 +252,7 @@ public:
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			if (mState.mCursors[c].mCursorPosition.mLine >= aFirstLineIndex)
-				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex), mState.mCursors[c].mCursorPosition.mColumn}, c);
+				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex), mState.mCursors[c].mCursorPosition.mColumn }, c);
 		}
 	}
 	inline void OnLineAdded(int aLineIndex)
@@ -264,13 +264,13 @@ public:
 		}
 	}
 
-	inline void SetHandleMouseInputs    (bool aValue){ mHandleMouseInputs    = aValue;}
+	inline void SetHandleMouseInputs(bool aValue) { mHandleMouseInputs = aValue; }
 	inline bool IsHandleMouseInputsEnabled() const { return mHandleMouseInputs; }
 
-	inline void SetHandleKeyboardInputs (bool aValue){ mHandleKeyboardInputs = aValue;}
+	inline void SetHandleKeyboardInputs(bool aValue) { mHandleKeyboardInputs = aValue; }
 	inline bool IsHandleKeyboardInputsEnabled() const { return mHandleKeyboardInputs; }
 
-	inline void SetImGuiChildIgnored    (bool aValue){ mIgnoreImGuiChild     = aValue;}
+	inline void SetImGuiChildIgnored(bool aValue) { mIgnoreImGuiChild = aValue; }
 	inline bool IsImGuiChildIgnored() const { return mIgnoreImGuiChild; }
 
 	inline void SetShowWhitespaces(bool aValue) { mShowWhitespaces = aValue; }
