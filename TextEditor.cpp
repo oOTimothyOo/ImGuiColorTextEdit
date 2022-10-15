@@ -1469,7 +1469,6 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 
 	for (int c = mState.mCurrentCursor; c > -1; c--)
 	{
-		//	indent left and right functionality
 		auto start = mState.mCursors[c].mSelectionStart;
 		auto end = mState.mCursors[c].mSelectionEnd;
 		auto originalEnd = end;
@@ -1514,7 +1513,7 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 					}
 				}
 			}
-			else
+			else if (mLines[i].size() > 0)
 			{
 				AddGlyphToLine(i, 0, Glyph('\t', TextEditor::PaletteIndex::Background));
 				modified = true;
