@@ -405,6 +405,7 @@ private:
 	void AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSourceStart, Line::iterator aSourceEnd);
 	void AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph);
 	Line& InsertLine(int aIndex);
+	void ChangeCurrentLinesIndentation(bool aIncrease);
 	void EnterCharacter(ImWchar aChar, bool aShift);
 	void Backspace(bool aWordMode = false);
 	void DeleteSelection(int aCursor = -1);

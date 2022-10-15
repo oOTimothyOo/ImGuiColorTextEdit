@@ -1455,109 +1455,128 @@ void TextEditor::SetTextLines(const std::vector<std::string>& aLines)
 	Colorize();
 }
 
-void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
+
+void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 {
 	assert(!mReadOnly);
 
 	UndoRecord u;
-
 	u.mBefore = mState;
 
-	if (HasSelection())
+	for (int c = mState.mCurrentCursor; c > -1; c--)
+	{
+		//	indent left and right functionality
+		auto start = mState.mCursors[c].mSelectionStart;
+		auto end = mState.mCursors[c].mSelectionEnd;
+		auto originalEnd = end;
+
+		if (start > end)
+			std::swap(start, end);
+		start.mColumn = 0;
+		//			end.mColumn = end.mLine < mLines.size() ? mLines[end.mLine].size() : 0;
+		if (end.mColumn == 0 && end.mLine > 0)
+			--end.mLine;
+		if (end.mLine >= (int)mLines.size())
+			end.mLine = mLines.empty() ? 0 : (int)mLines.size() - 1;
+		end.mColumn = GetLineMaxColumn(end.mLine);
+
+		//if (end.mColumn >= GetLineMaxColumn(end.mLine))
+		//	end.mColumn = GetLineMaxColumn(end.mLine) - 1;
+
+		u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
+
+		bool modified = false;
+
+		for (int i = start.mLine; i <= end.mLine; i++)
+		{
+			auto& line = mLines[i];
+			if (!aIncrease)
+			{
+				if (!line.empty())
+
+				{
+					if (line.front().mChar == '\t')
+					{
+						RemoveGlyphsFromLine(i, 0, 1);
+						modified = true;
+					}
+					else
+					{
+						for (int j = 0; j < mTabSize && !line.empty() && line.front().mChar == ' '; j++)
+						{
+							RemoveGlyphsFromLine(i, 0, 1);
+							modified = true;
+						}
+					}
+				}
+			}
+			else
+			{
+				AddGlyphToLine(i, 0, Glyph('\t', TextEditor::PaletteIndex::Background));
+				modified = true;
+			}
+		}
+
+		if (modified)
+		{
+			start = Coordinates(start.mLine, GetCharacterColumn(start.mLine, 0));
+			Coordinates rangeEnd;
+			std::string addedText;
+			if (originalEnd.mColumn != 0)
+			{
+				end = Coordinates(end.mLine, GetLineMaxColumn(end.mLine));
+				rangeEnd = end;
+				addedText = GetText(start, end);
+			}
+			else
+			{
+				end = Coordinates(originalEnd.mLine, 0);
+				rangeEnd = Coordinates(end.mLine - 1, GetLineMaxColumn(end.mLine - 1));
+				addedText = GetText(start, rangeEnd);
+			}
+
+			u.mOperations.push_back({ addedText , start, rangeEnd, UndoOperationType::Add });
+			u.mAfter = mState;
+
+			mState.mCursors[c].mSelectionStart = start;
+			mState.mCursors[c].mSelectionEnd = end;
+			AddUndo(u);
+
+			mTextChanged = true;
+
+			EnsureCursorVisible();
+		}
+	}
+}
+
+void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
+{
+	assert(!mReadOnly);
+
+	bool hasSelection = HasSelection();
+	bool anyCursorHasMultilineSelection = false;
+	for (int c = mState.mCurrentCursor; c > -1; c--)
+		if (mState.mCursors[c].mSelectionStart.mLine != mState.mCursors[c].mSelectionEnd.mLine)
+		{
+			anyCursorHasMultilineSelection = true;
+			break;
+		}
+	bool isIndentOperation = hasSelection && anyCursorHasMultilineSelection && aChar == '\t';
+	if (isIndentOperation)
+	{
+		ChangeCurrentLinesIndentation(!aShift);
+		return;
+	}
+
+	UndoRecord u;
+	u.mBefore = mState;
+
+	if (hasSelection)
 	{
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
-			if (aChar == '\t' && mState.mCursors[c].mSelectionStart.mLine != mState.mCursors[c].mSelectionEnd.mLine)
-			{
-				//	indent left and right functionality
-				auto start = mState.mCursors[c].mSelectionStart;
-				auto end = mState.mCursors[c].mSelectionEnd;
-				auto originalEnd = end;
-
-				if (start > end)
-					std::swap(start, end);
-				start.mColumn = 0;
-				//			end.mColumn = end.mLine < mLines.size() ? mLines[end.mLine].size() : 0;
-				if (end.mColumn == 0 && end.mLine > 0)
-					--end.mLine;
-				if (end.mLine >= (int)mLines.size())
-					end.mLine = mLines.empty() ? 0 : (int)mLines.size() - 1;
-				end.mColumn = GetLineMaxColumn(end.mLine);
-
-				//if (end.mColumn >= GetLineMaxColumn(end.mLine))
-				//	end.mColumn = GetLineMaxColumn(end.mLine) - 1;
-
-				u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
-
-				bool modified = false;
-
-				for (int i = start.mLine; i <= end.mLine; i++)
-				{
-					auto& line = mLines[i];
-					if (aShift)
-					{
-						if (!line.empty())
-
-						{
-							if (line.front().mChar == '\t')
-							{
-								RemoveGlyphsFromLine(i, 0, 1);
-								modified = true;
-							}
-							else
-							{
-								for (int j = 0; j < mTabSize && !line.empty() && line.front().mChar == ' '; j++)
-								{
-									RemoveGlyphsFromLine(i, 0, 1);
-									modified = true;
-								}
-							}
-						}
-					}
-					else
-					{
-						AddGlyphToLine(i, 0, Glyph('\t', TextEditor::PaletteIndex::Background));
-						modified = true;
-					}
-				}
-
-				if (modified)
-				{
-					start = Coordinates(start.mLine, GetCharacterColumn(start.mLine, 0));
-					Coordinates rangeEnd;
-					std::string addedText;
-					if (originalEnd.mColumn != 0)
-					{
-						end = Coordinates(end.mLine, GetLineMaxColumn(end.mLine));
-						rangeEnd = end;
-						addedText = GetText(start, end);
-					}
-					else
-					{
-						end = Coordinates(originalEnd.mLine, 0);
-						rangeEnd = Coordinates(end.mLine - 1, GetLineMaxColumn(end.mLine - 1));
-						addedText = GetText(start, rangeEnd);
-					}
-
-					u.mOperations.push_back({ addedText , start, rangeEnd, UndoOperationType::Add });
-					u.mAfter = mState;
-
-					mState.mCursors[c].mSelectionStart = start;
-					mState.mCursors[c].mSelectionEnd = end;
-					AddUndo(u);
-
-					mTextChanged = true;
-
-					EnsureCursorVisible();
-				}
-
-				continue;
-			} // c == '\t'
-			else
-			{
-				u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
-				DeleteSelection(c);
-			}
+			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
+			DeleteSelection(c);
 		}
 	} // HasSelection
 
