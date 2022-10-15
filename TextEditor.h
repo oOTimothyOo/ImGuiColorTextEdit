@@ -202,7 +202,7 @@ public:
 	~TextEditor();
 
 	void SetLanguageDefinition(const LanguageDefinition& aLanguageDef);
-	const LanguageDefinition& GetLanguageDefinition() const { return mLanguageDefinition; }
+	const char* GetLanguageDefinitionName() const;
 
 	const Palette& GetPalette() const { return mPaletteBase; }
 	void SetPalette(const Palette& aValue);
@@ -446,7 +446,7 @@ private:
 
 	Palette mPaletteBase;
 	Palette mPalette;
-	LanguageDefinition mLanguageDefinition;
+	const LanguageDefinition* mLanguageDefinition = nullptr;
 	RegexList mRegexList;
 
 	bool mCheckComments;
