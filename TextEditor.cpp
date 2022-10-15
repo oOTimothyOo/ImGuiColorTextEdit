@@ -908,6 +908,10 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			Backspace(ctrl);
 		else if (!IsReadOnly() && !alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_K)))
 			RemoveCurrentLines();
+		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed('['))
+			ChangeCurrentLinesIndentation(false);
+		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(']'))
+			ChangeCurrentLinesIndentation(true);
 		else if (!alt && !ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			mOverwrite ^= true;
 		else if (isCtrlOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
