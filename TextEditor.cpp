@@ -1483,7 +1483,7 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 		//if (end.mColumn >= GetLineMaxColumn(end.mLine))
 		//	end.mColumn = GetLineMaxColumn(end.mLine) - 1;
 
-		u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
+		UndoOperation removeOperation = { GetText(start, end) , start, end, UndoOperationType::Delete };
 
 		bool modified = false;
 
@@ -1535,18 +1535,20 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 				addedText = GetText(start, rangeEnd);
 			}
 
+			u.mOperations.push_back(removeOperation);
 			u.mOperations.push_back({ addedText , start, rangeEnd, UndoOperationType::Add });
 			u.mAfter = mState;
 
 			mState.mCursors[c].mSelectionStart = start;
 			mState.mCursors[c].mSelectionEnd = end;
-			AddUndo(u);
 
 			mTextChanged = true;
-
-			EnsureCursorVisible();
 		}
 	}
+
+	EnsureCursorVisible();
+	if (u.mOperations.size() > 0)
+		AddUndo(u);
 }
 
 void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
