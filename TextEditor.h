@@ -189,11 +189,13 @@ public:
 		static const LanguageDefinition& Lua();
 	};
 
-	struct Selection
+	enum class UndoOperationType { Add, Delete };
+	struct UndoOperation
 	{
 		std::string mText;
 		TextEditor::Coordinates mStart;
 		TextEditor::Coordinates mEnd;
+		UndoOperationType mType;
 	};
 
 	TextEditor();
@@ -356,16 +358,14 @@ private:
 		~UndoRecord() {}
 
 		UndoRecord(
-			const std::vector<Selection>& aAdded,
-			const std::vector<Selection>& aRemoved,
+			const std::vector<UndoOperation>& aOperations,
 			TextEditor::EditorState& aBefore,
 			TextEditor::EditorState& aAfter);
 
 		void Undo(TextEditor* aEditor);
 		void Redo(TextEditor* aEditor);
 
-		std::vector<Selection> mAdded;
-		std::vector<Selection> mRemoved;
+		std::vector<UndoOperation> mOperations;
 
 		EditorState mBefore;
 		EditorState mAfter;

@@ -687,7 +687,7 @@ void TextEditor::RemoveCurrentLines()
 	{
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
-			u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 			DeleteSelection(c);
 		}
 	}
@@ -718,7 +718,7 @@ void TextEditor::RemoveCurrentLines()
 			SetCursorPosition({ currentLine, 0 }, c);
 		}
 
-		u.mRemoved.push_back({ GetText(toDeleteStart, toDeleteEnd), toDeleteStart, toDeleteEnd });
+		u.mOperations.push_back({ GetText(toDeleteStart, toDeleteEnd), toDeleteStart, toDeleteEnd, UndoOperationType::Delete });
 
 		std::unordered_set<int> handledCursors = { c };
 		if (toDeleteStart.mLine != toDeleteEnd.mLine)
@@ -1487,7 +1487,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 				//if (end.mColumn >= GetLineMaxColumn(end.mLine))
 				//	end.mColumn = GetLineMaxColumn(end.mLine) - 1;
 
-				u.mRemoved.push_back({ GetText(start, end) , start, end });
+				u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
 
 				bool modified = false;
 
@@ -1539,7 +1539,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 						addedText = GetText(start, rangeEnd);
 					}
 
-					u.mAdded.push_back({ addedText , start, rangeEnd });
+					u.mOperations.push_back({ addedText , start, rangeEnd, UndoOperationType::Add });
 					u.mAfter = mState;
 
 					mState.mCursors[c].mSelectionStart = start;
@@ -1555,7 +1555,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 			} // c == '\t'
 			else
 			{
-				u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+				u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 				DeleteSelection(c);
 			}
 		}
@@ -1566,7 +1566,8 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 	{
 		auto coord = GetActualCursorCoordinates(c);
 		coords.push_back(coord);
-		Selection added, removed;
+		UndoOperation added;
+		added.mType = UndoOperationType::Add;
 		added.mStart = coord;
 
 		assert(!mLines.empty());
@@ -1606,6 +1607,8 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 				{
 					auto d = UTF8CharLength(line[cindex].mChar);
 
+					UndoOperation removed;
+					removed.mType = UndoOperationType::Delete;
 					removed.mStart = mState.mCursors[c].mCursorPosition;
 					removed.mEnd = Coordinates(coord.mLine, GetCharacterColumn(coord.mLine, cindex + d));
 
@@ -1614,6 +1617,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 						removed.mText += line[cindex].mChar;
 						RemoveGlyphsFromLine(coord.mLine, cindex, cindex + 1);
 					}
+					u.mOperations.push_back(removed);
 				}
 
 				for (auto p = buf; *p != '\0'; p++, ++cindex)
@@ -1629,11 +1633,10 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 		mTextChanged = true;
 
 		added.mEnd = GetActualCursorCoordinates(c);
-		u.mAdded.push_back(added);
-		u.mRemoved.push_back(removed);
-		u.mAfter = mState;
+		u.mOperations.push_back(added);
 	}
 
+	u.mAfter = mState;
 	AddUndo(u);
 
 	for (const auto& coord : coords)
@@ -2130,7 +2133,7 @@ void TextEditor::Delete(bool aWordMode)
 	{
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
-			u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 			DeleteSelection(c);
 		}
 	}
@@ -2152,7 +2155,7 @@ void TextEditor::Delete(bool aWordMode)
 				Coordinates startCoords = GetActualCursorCoordinates(c);
 				Coordinates endCoords = startCoords;
 				Advance(endCoords);
-				u.mRemoved.push_back({ "\n", startCoords , endCoords });
+				u.mOperations.push_back({ "\n", startCoords, endCoords, UndoOperationType::Delete });
 
 				auto& nextLine = mLines[pos.mLine + 1];
 				AddGlyphsToLine(pos.mLine, line.size(), nextLine.begin(), nextLine.end());
@@ -2172,7 +2175,7 @@ void TextEditor::Delete(bool aWordMode)
 				if (aWordMode)
 				{
 					Coordinates end = FindWordEnd(mState.mCursors[c].mCursorPosition);
-					u.mRemoved.push_back({ GetText(mState.mCursors[c].mCursorPosition, end),  mState.mCursors[c].mCursorPosition , end });
+					u.mOperations.push_back({ GetText(mState.mCursors[c].mCursorPosition, end),  mState.mCursors[c].mCursorPosition , end, UndoOperationType::Delete });
 					DeleteRange(mState.mCursors[c].mCursorPosition, end);
 					int charactersDeleted = end.mColumn - mState.mCursors[c].mCursorPosition.mColumn;
 				}
@@ -2183,7 +2186,7 @@ void TextEditor::Delete(bool aWordMode)
 					Coordinates start = GetActualCursorCoordinates(c);
 					Coordinates end = start;
 					end.mColumn++;
-					u.mRemoved.push_back({ GetText(start, end), start, end });
+					u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Delete });
 
 					auto d = UTF8CharLength(line[cindex].mChar);
 					while (d-- > 0 && cindex < (int)line.size())
@@ -2216,7 +2219,7 @@ void TextEditor::Backspace(bool aWordMode)
 	{
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
-			u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 			DeleteSelection(c);
 		}
 	}
@@ -2235,7 +2238,7 @@ void TextEditor::Backspace(bool aWordMode)
 				Coordinates startCoords = Coordinates(pos.mLine - 1, GetLineMaxColumn(pos.mLine - 1));
 				Coordinates endCoords = startCoords;
 				Advance(endCoords);
-				u.mRemoved.push_back({ "\n", startCoords, endCoords });
+				u.mOperations.push_back({ "\n", startCoords, endCoords, UndoOperationType::Delete });
 
 				auto& line = mLines[mState.mCursors[c].mCursorPosition.mLine];
 				int prevLineIndex = mState.mCursors[c].mCursorPosition.mLine - 1;
@@ -2269,7 +2272,7 @@ void TextEditor::Backspace(bool aWordMode)
 				if (aWordMode)
 				{
 					Coordinates start = FindWordStart(mState.mCursors[c].mCursorPosition - Coordinates(0, 1));
-					u.mRemoved.push_back({ GetText(start, mState.mCursors[c].mCursorPosition) , start, mState.mCursors[c].mCursorPosition });
+					u.mOperations.push_back({ GetText(start, mState.mCursors[c].mCursorPosition) , start, mState.mCursors[c].mCursorPosition, UndoOperationType::Delete });
 					DeleteRange(start, mState.mCursors[c].mCursorPosition);
 					int charactersDeleted = mState.mCursors[c].mCursorPosition.mColumn - start.mColumn;
 					mState.mCursors[c].mCursorPosition.mColumn -= charactersDeleted;
@@ -2284,7 +2287,8 @@ void TextEditor::Backspace(bool aWordMode)
 					//if (cindex > 0 && UTF8CharLength(line[cindex].mChar) > 1)
 					//	--cindex;
 
-					Selection removed;
+					UndoOperation removed;
+					removed.mType = UndoOperationType::Delete;
 					removed.mStart = removed.mEnd = GetActualCursorCoordinates(c);
 
 					if (line[cindex].mChar == '\t')
@@ -2305,7 +2309,7 @@ void TextEditor::Backspace(bool aWordMode)
 						removed.mText += line[cindex].mChar;
 						RemoveGlyphsFromLine(mState.mCursors[c].mCursorPosition.mLine, cindex, cindex + 1);
 					}
-					u.mRemoved.push_back(removed);
+					u.mOperations.push_back(removed);
 				}
 				mState.mCursors[c].mCursorPositionChanged = true;
 			}
@@ -2377,7 +2381,7 @@ void TextEditor::Cut()
 			Copy();
 			for (int c = mState.mCurrentCursor; c > -1; c--)
 			{
-				u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+				u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 				DeleteSelection(c);
 			}
 
@@ -2420,7 +2424,7 @@ void TextEditor::Paste()
 		{
 			for (int c = mState.mCurrentCursor; c > -1; c--)
 			{
-				u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
+				u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd, UndoOperationType::Delete });
 				DeleteSelection(c);
 			}
 		}
@@ -2432,12 +2436,12 @@ void TextEditor::Paste()
 			{
 				std::string clipSubText = clipText.substr(clipTextLines[c].first, clipTextLines[c].second - clipTextLines[c].first);
 				InsertText(clipSubText, c);
-				u.mAdded.push_back({ clipSubText, start, GetActualCursorCoordinates(c) });
+				u.mOperations.push_back({ clipSubText, start, GetActualCursorCoordinates(c), UndoOperationType::Add });
 			}
 			else
 			{
 				InsertText(clipText, c);
-				u.mAdded.push_back({ clipText, start, GetActualCursorCoordinates(c) });
+				u.mOperations.push_back({ clipText, start, GetActualCursorCoordinates(c), UndoOperationType::Add });
 			}
 		}
 
@@ -3023,69 +3027,70 @@ int TextEditor::GetPageSize() const
 }
 
 TextEditor::UndoRecord::UndoRecord(
-	const std::vector<Selection>& aAdded,
-	const std::vector<Selection>& aRemoved,
+	const std::vector<UndoOperation>& aOperations,
 	TextEditor::EditorState& aBefore,
 	TextEditor::EditorState& aAfter)
-	: mAdded(aAdded)
-	, mRemoved(aRemoved)
+	: mOperations(aOperations)
 	, mBefore(aBefore)
 	, mAfter(aAfter)
 {
-	for (const Selection& added : mAdded)
-		assert(added.mStart <= added.mEnd);
-	for (const Selection& removed : mRemoved)
-		assert(removed.mStart <= removed.mEnd);
+	for (const UndoOperation& o : mOperations)
+		assert(o.mStart <= o.mEnd);
 }
 
 void TextEditor::UndoRecord::Undo(TextEditor * aEditor)
 {
-	for (int i = mAdded.size() - 1; i > -1; i--)
+	for (int i = mOperations.size() - 1; i > -1; i--)
 	{
-		const Selection& added = mAdded[i];
-		if (!added.mText.empty())
+		const UndoOperation& operation = mOperations[i];
+		if (!operation.mText.empty())
 		{
-			aEditor->DeleteRange(added.mStart, added.mEnd);
-			aEditor->Colorize(added.mStart.mLine - 1, added.mEnd.mLine - added.mStart.mLine + 2);
-		}
-	}
-
-	for (int i = mRemoved.size() - 1; i > -1; i--)
-	{
-		const Selection& removed = mRemoved[i];
-		if (!removed.mText.empty())
-		{
-			auto start = removed.mStart;
-			aEditor->InsertTextAt(start, removed.mText.c_str());
-			aEditor->Colorize(removed.mStart.mLine - 1, removed.mEnd.mLine - removed.mStart.mLine + 2);
+			switch (operation.mType)
+			{
+			case UndoOperationType::Delete:
+			{
+				auto start = operation.mStart;
+				aEditor->InsertTextAt(start, operation.mText.c_str());
+				aEditor->Colorize(operation.mStart.mLine - 1, operation.mEnd.mLine - operation.mStart.mLine + 2);
+				break;
+			}
+			case UndoOperationType::Add:
+			{
+				aEditor->DeleteRange(operation.mStart, operation.mEnd);
+				aEditor->Colorize(operation.mStart.mLine - 1, operation.mEnd.mLine - operation.mStart.mLine + 2);
+				break;
+			}
+			}
 		}
 	}
 
 	aEditor->mState = mBefore;
 	aEditor->EnsureCursorVisible();
-
 }
 
 void TextEditor::UndoRecord::Redo(TextEditor * aEditor)
 {
-	for (int i = 0; i < mRemoved.size(); i++)
+	for (int i = 0; i < mOperations.size(); i++)
 	{
-		const Selection& removed = mRemoved[i];
-		if (!removed.mText.empty())
+		const UndoOperation& operation = mOperations[i];
+		if (!operation.mText.empty())
 		{
-			aEditor->DeleteRange(removed.mStart, removed.mEnd);
-			aEditor->Colorize(removed.mStart.mLine - 1, removed.mEnd.mLine - removed.mStart.mLine + 1);
-		}
-	}
-
-	for (int i = 0; i < mAdded.size(); i++)
-	{
-		const Selection& added = mAdded[i];
-		if (!added.mText.empty())
-		{
-			auto start = added.mStart;
-			aEditor->InsertTextAt(start, added.mText.c_str());
-			aEditor->Colorize(added.mStart.mLine - 1, added.mEnd.mLine - added.mStart.mLine + 1);
+			switch (operation.mType)
+			{
+			case UndoOperationType::Delete:
+			{
+				aEditor->DeleteRange(operation.mStart, operation.mEnd);
+				aEditor->Colorize(operation.mStart.mLine - 1, operation.mEnd.mLine - operation.mStart.mLine + 1);
+				break;
+			}
+			case UndoOperationType::Add:
+			{
+				auto start = operation.mStart;
+				aEditor->InsertTextAt(start, operation.mText.c_str());
+				aEditor->Colorize(operation.mStart.mLine - 1, operation.mEnd.mLine - operation.mStart.mLine + 1);
+				break;
+			}
+			}
 		}
 	}
 
