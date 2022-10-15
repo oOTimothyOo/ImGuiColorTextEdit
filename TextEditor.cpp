@@ -1555,7 +1555,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 			} // c == '\t'
 			else
 			{
-				u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[mState.mCurrentCursor].mSelectionEnd });
+				u.mRemoved.push_back({ GetSelectedText(c), mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionEnd });
 				DeleteSelection(c);
 			}
 		}
