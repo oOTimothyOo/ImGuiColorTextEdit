@@ -442,7 +442,7 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	{
 		auto c = line[cindex].mChar;
 		auto d = UTF8CharLength(c);
-		if (cstart != (PaletteIndex)line[cindex].mColorIndex)
+		if (cstart != (PaletteIndex)line[cindex].mColorIndex || (isspace(line[cindex].mChar) && !prevspace))
 			break;
 
 		if (prevspace != !!isspace(c))
