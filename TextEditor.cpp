@@ -205,23 +205,23 @@ static inline int ImTextCharToUtf8(char* buf, int buf_size, unsigned int c)
 
 void TextEditor::Advance(Coordinates& aCoordinates) const
 {
-	if (aCoordinates.mLine < (int)mLines.size())
-	{
-		auto& line = mLines[aCoordinates.mLine];
-		auto cindex = GetCharacterIndex(aCoordinates);
+	if (aCoordinates.mLine >= (int)mLines.size())
+		return;
 
-		if (cindex + 1 < (int)line.size())
-		{
-			auto delta = UTF8CharLength(line[cindex].mChar);
-			cindex = std::min(cindex + delta, (int)line.size() - 1);
-		}
-		else
-		{
-			++aCoordinates.mLine;
-			cindex = 0;
-		}
-		aCoordinates.mColumn = GetCharacterColumn(aCoordinates.mLine, cindex);
+	auto& line = mLines[aCoordinates.mLine];
+	auto cindex = GetCharacterIndexLeftSide(aCoordinates);
+
+	if (cindex + 1 < (int)line.size())
+	{
+		auto delta = UTF8CharLength(line[cindex].mChar);
+		cindex = std::min(cindex + delta, (int)line.size() - 1);
 	}
+	else if (mLines.size() > aCoordinates.mLine + 1)
+	{
+		++aCoordinates.mLine;
+		cindex = 0;
+	}
+	aCoordinates.mColumn = GetCharacterColumn(aCoordinates.mLine, cindex);
 }
 
 void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
@@ -402,26 +402,35 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 	if (cindex >= (int)line.size())
 		return at;
 
-	while (cindex > 0 && isspace(line[cindex].mChar))
-		--cindex;
-
-	auto cstart = (PaletteIndex)line[cindex].mColorIndex;
-	while (cindex > 0)
+	bool initialIsWordChar = IsGlyphWordChar(line[cindex]);
+	bool initialIsSpace = isspace(line[cindex].mChar);
+	uint8_t initialChar = line[cindex].mChar;
+	bool needToAdvance = false;
+	while (true)
 	{
+		--cindex;
+		if (cindex < 0)
+		{
+			cindex = 0;
+			break;
+		}
+
 		auto c = line[cindex].mChar;
 		if ((c & 0xC0) != 0x80)	// not UTF code sequence 10xxxxxx
 		{
-			if (c <= 32 && isspace(c))
+			bool isWordChar = IsGlyphWordChar(line[cindex]);
+			bool isSpace = isspace(line[cindex].mChar);
+			if (initialIsSpace && !isSpace || initialIsWordChar && !isWordChar || !initialIsWordChar && !initialIsSpace && initialChar != line[cindex].mChar)
 			{
-				cindex++;
+				needToAdvance = true;
 				break;
 			}
-			if (cstart != (PaletteIndex)line[size_t(cindex - 1)].mColorIndex)
-				break;
 		}
-		--cindex;
 	}
-	return Coordinates(at.mLine, GetCharacterColumn(at.mLine, cindex));
+	at.mColumn = GetCharacterColumn(at.mLine, cindex);
+	if (needToAdvance)
+		Advance(at);
+	return at;
 }
 
 TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
@@ -431,30 +440,28 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 		return at;
 
 	auto& line = mLines[at.mLine];
-	auto cindex = GetCharacterIndex(at);
+	auto cindex = GetCharacterIndexLeftSide(at);
 
 	if (cindex >= (int)line.size())
 		return at;
 
-	bool prevspace = (bool)!!isspace(line[cindex].mChar);
-	auto cstart = (PaletteIndex)line[cindex].mColorIndex;
-	while (cindex < (int)line.size())
+	bool initialIsWordChar = IsGlyphWordChar(line[cindex]);
+	bool initialIsSpace = isspace(line[cindex].mChar);
+	uint8_t initialChar = line[cindex].mChar;
+	while (true)
 	{
-		auto c = line[cindex].mChar;
-		auto d = UTF8CharLength(c);
-		if (cstart != (PaletteIndex)line[cindex].mColorIndex || (isspace(line[cindex].mChar) && !prevspace))
+		auto d = UTF8CharLength(line[cindex].mChar);
+		cindex += d;
+		if (cindex >= (int)line.size())
 			break;
 
-		if (prevspace != !!isspace(c))
-		{
-			if (isspace(c))
-				while (cindex < (int)line.size() && isspace(line[cindex].mChar))
-					++cindex;
+		bool isWordChar = IsGlyphWordChar(line[cindex]);
+		bool isSpace = isspace(line[cindex].mChar);
+		if (initialIsSpace && !isSpace || initialIsWordChar && !isWordChar || !initialIsWordChar && !initialIsSpace && initialChar != line[cindex].mChar)
 			break;
-		}
-		cindex += d;
 	}
-	return Coordinates(aFrom.mLine, GetCharacterColumn(aFrom.mLine, cindex));
+	at.mColumn = GetCharacterColumn(at.mLine, cindex);
+	return at;
 }
 
 TextEditor::Coordinates TextEditor::FindNextWord(const Coordinates& aFrom) const
@@ -851,6 +858,16 @@ ImU32 TextEditor::GetGlyphColor(const Glyph& aGlyph) const
 		return ImU32(c0 | (c1 << 8) | (c2 << 16) | (c3 << 24));
 	}
 	return color;
+}
+
+bool TextEditor::IsGlyphWordChar(const Glyph& aGlyph)
+{
+	int sizeInBytes = UTF8CharLength(aGlyph.mChar);
+	return sizeInBytes > 1 ||
+		aGlyph.mChar >= 'a' && aGlyph.mChar <= 'z' ||
+		aGlyph.mChar >= 'A' && aGlyph.mChar <= 'Z' ||
+		aGlyph.mChar >= '0' && aGlyph.mChar <= '9' ||
+		aGlyph.mChar == '_';
 }
 
 void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)

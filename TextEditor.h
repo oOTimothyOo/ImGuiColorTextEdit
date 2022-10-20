@@ -326,6 +326,8 @@ public:
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
 
+	static bool IsGlyphWordChar(const Glyph& aGlyph);
+
 	void ImGuiDebugPanel();
 private:
 	typedef std::vector<std::pair<std::regex, PaletteIndex>> RegexList;
