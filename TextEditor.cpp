@@ -211,10 +211,10 @@ void TextEditor::Advance(Coordinates& aCoordinates) const
 	auto& line = mLines[aCoordinates.mLine];
 	auto cindex = GetCharacterIndexLeftSide(aCoordinates);
 
-	if (cindex + 1 < (int)line.size())
+	if (cindex < (int)line.size())
 	{
 		auto delta = UTF8CharLength(line[cindex].mChar);
-		cindex = std::min(cindex + delta, (int)line.size() - 1);
+		cindex = std::min(cindex + delta, (int)line.size());
 	}
 	else if (mLines.size() > aCoordinates.mLine + 1)
 	{
