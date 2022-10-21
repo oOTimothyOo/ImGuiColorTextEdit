@@ -1,6 +1,5 @@
 #include <TextEditor.h>
 
-
 void TextEditor::ImGuiDebugPanel()
 {
 	ImGui::Begin("Text editor debug");
@@ -39,6 +38,10 @@ void TextEditor::ImGuiDebugPanel()
 				}
 			}
 		}
+	}
+	if (ImGui::Button("Run unit tests"))
+	{
+		UnitTests();
 	}
 	ImGui::End();
 }

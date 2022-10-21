@@ -329,6 +329,7 @@ public:
 	static bool IsGlyphWordChar(const Glyph& aGlyph);
 
 	void ImGuiDebugPanel();
+	void UnitTests();
 private:
 	typedef std::vector<std::pair<std::regex, PaletteIndex>> RegexList;
 
