@@ -1,8 +1,8 @@
 #include <TextEditor.h>
 
-void TextEditor::ImGuiDebugPanel()
+void TextEditor::ImGuiDebugPanel(const std::string& panelName)
 {
-	ImGui::Begin("Text editor debug");
+	ImGui::Begin(panelName.c_str());
 
 	if (ImGui::CollapsingHeader("Cursor info"))
 	{
