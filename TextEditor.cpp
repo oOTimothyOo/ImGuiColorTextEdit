@@ -953,7 +953,7 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			EnterCharacter('\n', false);
 		else if (!IsReadOnly() && !alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab)))
 			EnterCharacter('\t', shift);
-		if (!IsReadOnly() && !io.InputQueueCharacters.empty() && !ctrl && !super)
+		if (!IsReadOnly() && !io.InputQueueCharacters.empty() && ctrl == alt && !super)
 		{
 			for (int i = 0; i < io.InputQueueCharacters.Size; i++)
 			{
