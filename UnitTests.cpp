@@ -29,68 +29,68 @@ void TextEditor::UnitTests()
 		assert(GetCharacterColumn(2, 2) == 0);
 	}
 
-	// --- GetCharacterIndexLeftSide --- //
+	// --- GetCharacterIndexL --- //
 	{
 		// Returns character index from coordinates, if coordinates are in the middle of a tab character it returns character index of that tab character
-		assert(GetCharacterIndexLeftSide({ 0, 0 }) == 0);
-		assert(GetCharacterIndexLeftSide({ 0, 1 }) == 1);
-		assert(GetCharacterIndexLeftSide({ 0, 2 }) == 1);
-		assert(GetCharacterIndexLeftSide({ 0, 3 }) == 1);
-		assert(GetCharacterIndexLeftSide({ 0, 4 }) == 2);
-		assert(GetCharacterIndexLeftSide({ 0, 5 }) == 3);
-		assert(GetCharacterIndexLeftSide({ 0, 6 }) == 4);
-		assert(GetCharacterIndexLeftSide({ 0, 7 }) == 4);
-		assert(GetCharacterIndexLeftSide({ 0, 8 }) == 5);
-		assert(GetCharacterIndexLeftSide({ 0, 9 }) == 6);
-		assert(GetCharacterIndexLeftSide({ 0, 10 }) == 7);
-		assert(GetCharacterIndexLeftSide({ 0, 11 }) == 8);
-		assert(GetCharacterIndexLeftSide({ 0, 12 }) == 9);
-		assert(GetCharacterIndexLeftSide({ 0, 13 }) == 10);
-		assert(GetCharacterIndexLeftSide({ 0, 14 }) == 10);
-		assert(GetCharacterIndexLeftSide({ 0, 15 }) == 10);
-		assert(GetCharacterIndexLeftSide({ 0, 16 }) == 11);
-		assert(GetCharacterIndexLeftSide({ 0, 17 }) == 11); // out of range
-		assert(GetCharacterIndexLeftSide({ 0, 18 }) == 11); // out of range
+		assert(GetCharacterIndexL({ 0, 0 }) == 0);
+		assert(GetCharacterIndexL({ 0, 1 }) == 1);
+		assert(GetCharacterIndexL({ 0, 2 }) == 1);
+		assert(GetCharacterIndexL({ 0, 3 }) == 1);
+		assert(GetCharacterIndexL({ 0, 4 }) == 2);
+		assert(GetCharacterIndexL({ 0, 5 }) == 3);
+		assert(GetCharacterIndexL({ 0, 6 }) == 4);
+		assert(GetCharacterIndexL({ 0, 7 }) == 4);
+		assert(GetCharacterIndexL({ 0, 8 }) == 5);
+		assert(GetCharacterIndexL({ 0, 9 }) == 6);
+		assert(GetCharacterIndexL({ 0, 10 }) == 7);
+		assert(GetCharacterIndexL({ 0, 11 }) == 8);
+		assert(GetCharacterIndexL({ 0, 12 }) == 9);
+		assert(GetCharacterIndexL({ 0, 13 }) == 10);
+		assert(GetCharacterIndexL({ 0, 14 }) == 10);
+		assert(GetCharacterIndexL({ 0, 15 }) == 10);
+		assert(GetCharacterIndexL({ 0, 16 }) == 11);
+		assert(GetCharacterIndexL({ 0, 17 }) == 11); // out of range
+		assert(GetCharacterIndexL({ 0, 18 }) == 11); // out of range
 		// empty line
-		assert(GetCharacterIndexLeftSide({ 1, 0 }) == 0);
-		assert(GetCharacterIndexLeftSide({ 1, 1 }) == 0); // out of range
-		assert(GetCharacterIndexLeftSide({ 1, 2 }) == 0); // out of range
+		assert(GetCharacterIndexL({ 1, 0 }) == 0);
+		assert(GetCharacterIndexL({ 1, 1 }) == 0); // out of range
+		assert(GetCharacterIndexL({ 1, 2 }) == 0); // out of range
 		// nonexistent line
-		assert(GetCharacterIndexLeftSide({ 2, 0 }) == -1);
-		assert(GetCharacterIndexLeftSide({ 2, 1 }) == -1);
-		assert(GetCharacterIndexLeftSide({ 2, 2 }) == -1);
+		assert(GetCharacterIndexL({ 2, 0 }) == -1);
+		assert(GetCharacterIndexL({ 2, 1 }) == -1);
+		assert(GetCharacterIndexL({ 2, 2 }) == -1);
 	}
 
-	// --- GetCharacterIndex --- //
+	// --- GetCharacterIndexR --- //
 	{
-		// Returns character index from coordinates, if coordinates are in the middle of a tab character it returns character index of that tab character
-		assert(GetCharacterIndex({ 0, 0 }) == 0);
-		assert(GetCharacterIndex({ 0, 1 }) == 1);
-		assert(GetCharacterIndex({ 0, 2 }) == 2);
-		assert(GetCharacterIndex({ 0, 3 }) == 2);
-		assert(GetCharacterIndex({ 0, 4 }) == 2);
-		assert(GetCharacterIndex({ 0, 5 }) == 3);
-		assert(GetCharacterIndex({ 0, 6 }) == 4);
-		assert(GetCharacterIndex({ 0, 7 }) == 5);
-		assert(GetCharacterIndex({ 0, 8 }) == 5);
-		assert(GetCharacterIndex({ 0, 9 }) == 6);
-		assert(GetCharacterIndex({ 0, 10 }) == 7);
-		assert(GetCharacterIndex({ 0, 11 }) == 8);
-		assert(GetCharacterIndex({ 0, 12 }) == 9);
-		assert(GetCharacterIndex({ 0, 13 }) == 10);
-		assert(GetCharacterIndex({ 0, 14 }) == 11);
-		assert(GetCharacterIndex({ 0, 15 }) == 11);
-		assert(GetCharacterIndex({ 0, 16 }) == 11);
-		assert(GetCharacterIndex({ 0, 17 }) == 11); // out of range
-		assert(GetCharacterIndex({ 0, 18 }) == 11); // out of range
+		// Returns character index from coordinates, if coordinates are in the middle of a tab character it returns character index of next character
+		assert(GetCharacterIndexR({ 0, 0 }) == 0);
+		assert(GetCharacterIndexR({ 0, 1 }) == 1);
+		assert(GetCharacterIndexR({ 0, 2 }) == 2);
+		assert(GetCharacterIndexR({ 0, 3 }) == 2);
+		assert(GetCharacterIndexR({ 0, 4 }) == 2);
+		assert(GetCharacterIndexR({ 0, 5 }) == 3);
+		assert(GetCharacterIndexR({ 0, 6 }) == 4);
+		assert(GetCharacterIndexR({ 0, 7 }) == 5);
+		assert(GetCharacterIndexR({ 0, 8 }) == 5);
+		assert(GetCharacterIndexR({ 0, 9 }) == 6);
+		assert(GetCharacterIndexR({ 0, 10 }) == 7);
+		assert(GetCharacterIndexR({ 0, 11 }) == 8);
+		assert(GetCharacterIndexR({ 0, 12 }) == 9);
+		assert(GetCharacterIndexR({ 0, 13 }) == 10);
+		assert(GetCharacterIndexR({ 0, 14 }) == 11);
+		assert(GetCharacterIndexR({ 0, 15 }) == 11);
+		assert(GetCharacterIndexR({ 0, 16 }) == 11);
+		assert(GetCharacterIndexR({ 0, 17 }) == 11); // out of range
+		assert(GetCharacterIndexR({ 0, 18 }) == 11); // out of range
 		// empty line
-		assert(GetCharacterIndex({ 1, 0 }) == 0);
-		assert(GetCharacterIndex({ 1, 1 }) == 0); // out of range
-		assert(GetCharacterIndex({ 1, 2 }) == 0); // out of range
+		assert(GetCharacterIndexR({ 1, 0 }) == 0);
+		assert(GetCharacterIndexR({ 1, 1 }) == 0); // out of range
+		assert(GetCharacterIndexR({ 1, 2 }) == 0); // out of range
 		// nonexistent line
-		assert(GetCharacterIndex({ 2, 0 }) == -1);
-		assert(GetCharacterIndex({ 2, 1 }) == -1);
-		assert(GetCharacterIndex({ 2, 2 }) == -1);
+		assert(GetCharacterIndexR({ 2, 0 }) == -1);
+		assert(GetCharacterIndexR({ 2, 1 }) == -1);
+		assert(GetCharacterIndexR({ 2, 2 }) == -1);
 	}
 
 	// --- Advance --- //

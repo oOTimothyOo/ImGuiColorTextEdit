@@ -84,8 +84,8 @@ std::string TextEditor::GetText(const Coordinates& aStart, const Coordinates& aE
 
 	auto lstart = aStart.mLine;
 	auto lend = aEnd.mLine;
-	auto istart = GetCharacterIndex(aStart);
-	auto iend = GetCharacterIndex(aEnd);
+	auto istart = GetCharacterIndexR(aStart);
+	auto iend = GetCharacterIndexR(aEnd);
 	size_t s = 0;
 
 	for (size_t i = lstart; i < lend; i++)
@@ -209,7 +209,7 @@ void TextEditor::Advance(Coordinates& aCoordinates) const
 		return;
 
 	auto& line = mLines[aCoordinates.mLine];
-	auto cindex = GetCharacterIndexLeftSide(aCoordinates);
+	auto cindex = GetCharacterIndexL(aCoordinates);
 
 	if (cindex < (int)line.size())
 	{
@@ -234,8 +234,8 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
 	if (aEnd == aStart)
 		return;
 
-	auto start = GetCharacterIndexLeftSide(aStart);
-	auto end = GetCharacterIndex(aEnd);
+	auto start = GetCharacterIndexL(aStart);
+	auto end = GetCharacterIndexR(aEnd);
 
 	if (aStart.mLine == aEnd.mLine)
 	{
@@ -266,7 +266,7 @@ int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue
 {
 	assert(!mReadOnly);
 
-	int cindex = GetCharacterIndex(aWhere);
+	int cindex = GetCharacterIndexR(aWhere);
 	int totalLines = 0;
 	while (*aValue != '\0')
 	{
@@ -397,7 +397,7 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 		return at;
 
 	auto& line = mLines[at.mLine];
-	auto cindex = GetCharacterIndexLeftSide(at);
+	auto cindex = GetCharacterIndexL(at);
 
 	if (cindex >= (int)line.size())
 		return at;
@@ -440,7 +440,7 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 		return at;
 
 	auto& line = mLines[at.mLine];
-	auto cindex = GetCharacterIndexLeftSide(at);
+	auto cindex = GetCharacterIndexL(at);
 
 	if (cindex >= (int)line.size())
 		return at;
@@ -471,7 +471,7 @@ TextEditor::Coordinates TextEditor::FindNextWord(const Coordinates& aFrom) const
 		return at;
 
 	// skip to the next non-word character
-	auto cindex = GetCharacterIndex(aFrom);
+	auto cindex = GetCharacterIndexR(aFrom);
 	bool isword = false;
 	bool skip = false;
 	if (cindex < (int)mLines[at.mLine].size())
@@ -514,7 +514,7 @@ TextEditor::Coordinates TextEditor::FindNextWord(const Coordinates& aFrom) const
 	return at;
 }
 
-int TextEditor::GetCharacterIndexLeftSide(const Coordinates& aCoordinates) const
+int TextEditor::GetCharacterIndexL(const Coordinates& aCoordinates) const
 {
 	if (aCoordinates.mLine >= mLines.size())
 		return -1;
@@ -542,7 +542,7 @@ int TextEditor::GetCharacterIndexLeftSide(const Coordinates& aCoordinates) const
 	return i;
 }
 
-int TextEditor::GetCharacterIndex(const Coordinates& aCoordinates) const
+int TextEditor::GetCharacterIndexR(const Coordinates& aCoordinates) const
 {
 	if (aCoordinates.mLine >= mLines.size())
 		return -1;
@@ -614,7 +614,7 @@ bool TextEditor::IsOnWordBoundary(const Coordinates& aAt) const
 		return true;
 
 	auto& line = mLines[aAt.mLine];
-	auto cindex = GetCharacterIndex(aAt);
+	auto cindex = GetCharacterIndexR(aAt);
 	if (cindex >= (int)line.size())
 		return true;
 
@@ -754,7 +754,7 @@ void TextEditor::OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int a
 			{
 				if (mState.mCursors[c].mCursorPosition.mColumn > aColumn)
 				{
-					cursorCharIndices[c] = GetCharacterIndex({ aLine, mState.mCursors[c].mCursorPosition.mColumn });
+					cursorCharIndices[c] = GetCharacterIndexR({ aLine, mState.mCursors[c].mCursorPosition.mColumn });
 					cursorCharIndices[c] += aDeleted ? -aCharCount : aCharCount;
 				}
 			}
@@ -830,8 +830,8 @@ std::string TextEditor::GetWordAt(const Coordinates& aCoords) const
 
 	std::string r;
 
-	auto istart = GetCharacterIndex(start);
-	auto iend = GetCharacterIndex(end);
+	auto istart = GetCharacterIndexR(start);
+	auto iend = GetCharacterIndexR(end);
 
 	for (auto it = istart; it < iend; ++it)
 		r.push_back(mLines[aCoords.mLine][it].mChar);
@@ -1216,7 +1216,7 @@ void TextEditor::Render(bool aParentIsFocused)
 					for (const auto& cursorCoords : cursorCoordsInThisLine)
 					{
 						float width = 1.0f;
-						auto cindex = GetCharacterIndex(cursorCoords);
+						auto cindex = GetCharacterIndexR(cursorCoords);
 						float cx = TextDistanceToLineStart(cursorCoords);
 
 						if (mOverwrite && cindex < (int)line.size())
@@ -1633,7 +1633,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 				}
 
 			const size_t whitespaceSize = newLine.size();
-			auto cindex = GetCharacterIndex(coord);
+			auto cindex = GetCharacterIndexR(coord);
 			AddGlyphsToLine(coord.mLine + 1, newLine.size(), line.begin() + cindex, line.end());
 			RemoveGlyphsFromLine(coord.mLine, cindex);
 			SetCursorPosition(Coordinates(coord.mLine + 1, GetCharacterColumn(coord.mLine + 1, (int)whitespaceSize)), c);
@@ -1646,7 +1646,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 			{
 				buf[e] = '\0';
 				auto& line = mLines[coord.mLine];
-				auto cindex = GetCharacterIndex(coord);
+				auto cindex = GetCharacterIndexR(coord);
 
 				if (mOverwrite && cindex < (int)line.size())
 				{
@@ -1943,7 +1943,7 @@ void TextEditor::MoveLeft(int aAmount, bool aSelect, bool aWordMode)
 			auto oldPos = mState.mCursors[c].mCursorPosition;
 			mState.mCursors[c].mCursorPosition = GetActualCursorCoordinates(c);
 			auto line = mState.mCursors[c].mCursorPosition.mLine;
-			auto cindex = GetCharacterIndex(mState.mCursors[c].mCursorPosition);
+			auto cindex = GetCharacterIndexR(mState.mCursors[c].mCursorPosition);
 
 			while (amount-- > 0)
 			{
@@ -1975,7 +1975,7 @@ void TextEditor::MoveLeft(int aAmount, bool aSelect, bool aWordMode)
 				if (aWordMode)
 				{
 					mState.mCursors[c].mCursorPosition = FindWordStart(mState.mCursors[c].mCursorPosition);
-					cindex = GetCharacterIndex(mState.mCursors[c].mCursorPosition);
+					cindex = GetCharacterIndexR(mState.mCursors[c].mCursorPosition);
 				}
 			}
 
@@ -2030,7 +2030,7 @@ void TextEditor::MoveRight(int aAmount, bool aSelect, bool aWordMode)
 				continue;
 
 			int amount = aAmount;
-			auto cindex = GetCharacterIndex(mState.mCursors[c].mCursorPosition);
+			auto cindex = GetCharacterIndexR(mState.mCursors[c].mCursorPosition);
 			while (amount-- > 0)
 			{
 				auto lindex = mState.mCursors[c].mCursorPosition.mLine;
@@ -2208,8 +2208,8 @@ void TextEditor::Delete(bool aWordMode)
 					otherCursor <= mState.mCurrentCursor && mState.mCursors[otherCursor].mCursorPosition.mLine == pos.mLine + 1;
 					otherCursor++) // move up cursors in next line
 				{
-					int otherCursorCharIndex = GetCharacterIndex(mState.mCursors[otherCursor].mCursorPosition);
-					int otherCursorNewCharIndex = GetCharacterIndex(pos) + otherCursorCharIndex;
+					int otherCursorCharIndex = GetCharacterIndexR(mState.mCursors[otherCursor].mCursorPosition);
+					int otherCursorNewCharIndex = GetCharacterIndexR(pos) + otherCursorCharIndex;
 					auto targetCoords = Coordinates(pos.mLine, GetCharacterColumn(pos.mLine, otherCursorNewCharIndex));
 					SetCursorPosition(targetCoords, otherCursor);
 				}
@@ -2226,7 +2226,7 @@ void TextEditor::Delete(bool aWordMode)
 				}
 				else
 				{
-					auto cindex = GetCharacterIndex(pos);
+					auto cindex = GetCharacterIndexR(pos);
 
 					Coordinates start = GetActualCursorCoordinates(c);
 					Coordinates end = start;
@@ -2295,8 +2295,8 @@ void TextEditor::Backspace(bool aWordMode)
 					otherCursor <= mState.mCurrentCursor && mState.mCursors[otherCursor].mCursorPosition.mLine == mState.mCursors[c].mCursorPosition.mLine;
 					otherCursor++) // move up cursors in same line
 				{
-					int otherCursorCharIndex = GetCharacterIndex(mState.mCursors[otherCursor].mCursorPosition);
-					int otherCursorNewCharIndex = GetCharacterIndex({ prevLineIndex, prevSize }) + otherCursorCharIndex;
+					int otherCursorCharIndex = GetCharacterIndexR(mState.mCursors[otherCursor].mCursorPosition);
+					int otherCursorNewCharIndex = GetCharacterIndexR({ prevLineIndex, prevSize }) + otherCursorCharIndex;
 					auto targetCoords = Coordinates(prevLineIndex, GetCharacterColumn(prevLineIndex, otherCursorNewCharIndex));
 					SetCursorPosition(targetCoords, otherCursor);
 					cursorsHandled.insert(otherCursor);
@@ -2324,7 +2324,7 @@ void TextEditor::Backspace(bool aWordMode)
 				}
 				else
 				{
-					auto cindex = GetCharacterIndex(pos) - 1;
+					auto cindex = GetCharacterIndexR(pos) - 1;
 					auto cend = cindex + 1;
 					while (cindex > 0 && IsUTFSequence(line[cindex].mChar))
 						--cindex;
@@ -3005,7 +3005,7 @@ float TextEditor::TextDistanceToLineStart(const Coordinates& aFrom) const
 	auto& line = mLines[aFrom.mLine];
 	float distance = 0.0f;
 	float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
-	int colIndex = GetCharacterIndex(aFrom);
+	int colIndex = GetCharacterIndexR(aFrom);
 	for (size_t it = 0u; it < line.size() && it < colIndex; )
 	{
 		if (line[it].mChar == '\t')
