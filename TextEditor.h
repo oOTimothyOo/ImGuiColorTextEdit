@@ -236,6 +236,7 @@ public:
 
 	Coordinates GetCursorPosition() const { return GetActualCursorCoordinates(); }
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1);
+	void SetCursorPosition(int aLine, int aCharIndex, int aCursor = -1);
 
 	inline void OnLineDeleted(int aLineIndex, const std::unordered_set<int>* aHandledCursors = nullptr)
 	{
@@ -307,6 +308,7 @@ public:
 	void SetSelectionStart(const Coordinates& aPosition, int aCursor = -1);
 	void SetSelectionEnd(const Coordinates& aPosition, int aCursor = -1);
 	void SetSelection(const Coordinates& aStart, const Coordinates& aEnd, SelectionMode aMode = SelectionMode::Normal, int aCursor = -1, bool isSpawningNewCursor = false);
+	void SetSelection(int aStartLine, int aStartCharIndex, int aEndLine, int aEndCharIndex, SelectionMode aMode = SelectionMode::Normal, int aCursor = -1, bool isSpawningNewCursor = false);
 	void SelectWordUnderCursor();
 	void SelectAll();
 	bool HasSelection() const;

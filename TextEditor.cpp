@@ -1732,6 +1732,11 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor)
 	//std::cout << log << std::endl;
 }
 
+void TextEditor::SetCursorPosition(int aLine, int aCharIndex, int aCursor)
+{
+	SetCursorPosition({ aLine, GetCharacterColumn(aLine, aCharIndex) }, aCursor);
+}
+
 void TextEditor::SetSelectionStart(const Coordinates& aPosition, int aCursor)
 {
 	if (aCursor == -1)
@@ -1787,6 +1792,14 @@ void TextEditor::SetSelection(const Coordinates& aStart, const Coordinates& aEnd
 		mState.mCursors[aCursor].mSelectionEnd != oldSelEnd)
 		if (!isSpawningNewCursor)
 			mState.mCursors[aCursor].mCursorPositionChanged = true;
+}
+
+void TextEditor::SetSelection(int aStartLine, int aStartCharIndex, int aEndLine, int aEndCharIndex, SelectionMode aMode, int aCursor, bool isSpawningNewCursor)
+{
+	SetSelection(
+		{ aStartLine, GetCharacterColumn(aStartLine, aStartCharIndex) },
+		{ aEndLine, GetCharacterColumn(aEndLine, aEndCharIndex) },
+		aMode, aCursor, isSpawningNewCursor);
 }
 
 void TextEditor::SetTabSize(int aValue)
