@@ -5,7 +5,8 @@ void TextEditor::UnitTests()
 	SetText(" \t  \t   \t \t\n");
 	// --- GetCharacterColumn --- //
 	{
-		// Returns column given line and character index in that line
+		// Returns column given line and character index in that line.
+		// Column is on the left side of character
 		assert(GetCharacterColumn(0, 0) == 0);
 		assert(GetCharacterColumn(0, 1) == 1);
 		assert(GetCharacterColumn(0, 2) == 4);
