@@ -1378,7 +1378,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 }
 
-void TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
+bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
 {
 	for (int c = 0; c <= mState.mCurrentCursor; c++)
 	{
@@ -1398,6 +1398,7 @@ void TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 	if (!mIgnoreImGuiChild)
 		ImGui::BeginChild(aTitle, aSize, aBorder, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 
+	bool isFocused = ImGui::IsWindowFocused();
 	if (mHandleKeyboardInputs)
 	{
 		HandleKeyboardInputs(aParentIsFocused);
@@ -1420,6 +1421,7 @@ void TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 	ImGui::PopStyleColor();
 
 	mWithinRender = false;
+	return isFocused;
 }
 
 void TextEditor::SetText(const std::string& aText)
