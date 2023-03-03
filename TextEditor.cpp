@@ -2510,6 +2510,11 @@ void TextEditor::Paste()
 	}
 }
 
+int TextEditor::GetUndoIndex() const
+{
+	return mUndoIndex;
+}
+
 bool TextEditor::CanUndo() const
 {
 	return !mReadOnly && mUndoIndex > 0;

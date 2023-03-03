@@ -319,6 +319,7 @@ public:
 	void Paste();
 	void Delete(bool aWordMode = false);
 
+	int GetUndoIndex() const;
 	bool CanUndo() const;
 	bool CanRedo() const;
 	void Undo(int aSteps = 1);
