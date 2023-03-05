@@ -189,6 +189,7 @@ public:
 		static const LanguageDefinition& AngelScript();
 		static const LanguageDefinition& Lua();
 		static const LanguageDefinition& CSharp();
+		static const LanguageDefinition& Json();
 	};
 
 	enum class UndoOperationType { Add, Delete };
