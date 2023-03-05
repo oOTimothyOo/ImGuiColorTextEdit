@@ -167,4 +167,41 @@ void TextEditor::UnitTests()
 		assert(text.compare(" \t  \t   \t \t\n") == 0);
 	}
 
+	// --- DeleteRange --- //
+	{
+		// Deletes from start to end coordinates, any overlapping tabs will be deleted, doesn't allow out of range lines
+		DeleteRange({ 0, 0 }, { 0, 0 });
+		assert(GetText() == " \t  \t   \t \t\n");
+		DeleteRange({ 0, 0 }, { 0, 1 });
+		assert(GetText() == "\t  \t   \t \t\n");
+		DeleteRange({ 0, 0 }, { 0, 2 });
+		assert(GetText() == "  \t   \t \t\n");
+		DeleteRange({ 0, 12 }, { 0, 12 });
+		assert(GetText() == "  \t   \t \t\n");
+		DeleteRange({ 1, 0 }, { 1, 0 });
+		assert(GetText() == "  \t   \t \t\n");
+		DeleteRange({ 0, 11 }, { 0, 12 });
+		assert(GetText() == "  \t   \t \n");
+		DeleteRange({ 0, 2 }, { 0, 3 });
+		assert(GetText() == "     \t \n");
+		DeleteRange({ 0, 6 }, { 0, 7 });
+		assert(GetText() == "      \n");
+		SetText("a\nb\nc\nd\ne");
+		DeleteRange({ 0, 0 }, { 2, 1 });
+		assert(GetText() == "\nd\ne");
+		DeleteRange({ 1, 1 }, { 2, 0 });
+		assert(GetText() == "\nde");
+		DeleteRange({ 1, 1 }, { 1, 15 }); // out of range column
+		assert(GetText() == "\nd");
+		SetText("asdf\nzxcv\nqwer\npo");
+		DeleteRange({ 1, 2 }, { 1, 200 }); // out of range column
+		assert(GetText() == "asdf\nzx\nqwer\npo");
+		DeleteRange({ 0, 500 }, { 2, 500 }); // out of range column
+		assert(GetText() == "asdf\npo");
+	}
+
+	// --- RemoveGlyphsFromLine --- //
+	{
+		// 
+	}
 }
