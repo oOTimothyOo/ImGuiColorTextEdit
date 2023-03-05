@@ -949,6 +949,8 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			Cut();
 		else if (isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A)))
 			SelectAll();
+		else if (isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_D)))
+			AddCursorForNextOccurrence();
 		else if (!IsReadOnly() && !alt && !ctrl && !shift && !super && (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_KeyPadEnter))))
 			EnterCharacter('\n', false);
 		else if (!IsReadOnly() && !alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab)))
@@ -1056,12 +1058,7 @@ void TextEditor::HandleMouseInputs()
 			else if (ImGui::IsMouseReleased(0))
 			{
 				mDraggingSelection = false;
-
-				// sort from cursors from top to bottom
-				std::sort(mState.mCursors.begin(), mState.mCursors.begin() + (mState.mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
-					{
-						return a.mSelectionStart < b.mSelectionStart;
-					});
+				mState.SortCursorsFromTopToBottom();
 				MergeCursorsIfPossible();
 			}
 		}
@@ -1376,6 +1373,54 @@ void TextEditor::Render(bool aParentIsFocused)
 		EnsureCursorVisible();
 		mScrollToCursor = false;
 	}
+}
+
+bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd)
+{
+	assert(aTextSize > 0);
+	for (int i = 0; i < mLines.size(); i++)
+	{
+		int currentLine = (aFrom.mLine + i) % mLines.size();
+		int lineStartIndex = i == 0 ? GetCharacterIndexR(aFrom) : 0;
+		int aTextIndex = 0;
+		int j = lineStartIndex;
+		for (; j < mLines[currentLine].size(); j++)
+		{
+			if (aTextIndex == aTextSize)
+				break;
+			if (aText[aTextIndex] == mLines[currentLine][j].mChar)
+				aTextIndex++;
+			else
+				aTextIndex = 0;
+		}
+		if (aTextIndex == aTextSize)
+		{
+			outStart = { currentLine, GetCharacterColumn(currentLine, j - aTextSize) };
+			outEnd = { currentLine, GetCharacterColumn(currentLine, j) };
+			return true;
+		}
+	}
+	// in line where we started again but from char index 0 to aFrom.mColumn
+	{
+		int aTextIndex = 0;
+		int j = 0;
+		for (; j < GetCharacterIndexR(aFrom); j++)
+		{
+			if (aTextIndex == aTextSize)
+				break;
+			if (aText[aTextIndex] == mLines[aFrom.mLine][j].mChar)
+				aTextIndex++;
+			else
+				aTextIndex = 0;
+		}
+		if (aTextIndex == aTextSize)
+		{
+			outStart = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j - aTextSize) };
+			outEnd = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j) };
+			return true;
+		}
+	}
+	return false;
 }
 
 bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
@@ -1702,11 +1747,7 @@ void TextEditor::OnCursorPositionChanged(int aCursor)
 		return;
 
 	//std::cout << "Cursor position changed\n";
-	// sort from cursors from top to bottom
-	std::sort(mState.mCursors.begin(), mState.mCursors.begin() + (mState.mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
-		{
-			return a.mSelectionStart < b.mSelectionStart;
-		});
+	mState.SortCursorsFromTopToBottom();
 	MergeCursorsIfPossible();
 }
 
@@ -2537,6 +2578,26 @@ void TextEditor::Redo(int aSteps)
 		mUndoBuffer[mUndoIndex++].Redo(this);
 }
 
+void TextEditor::AddCursorForNextOccurrence()
+{
+	const Cursor& currentCursor = mState.mCursors[mState.GetLastAddedCursorIndex()];
+	if (currentCursor.mSelectionStart == currentCursor.mSelectionEnd)
+		return;
+
+	std::string selectionText = GetText(currentCursor.mSelectionStart, currentCursor.mSelectionEnd);
+	Coordinates nextStart, nextEnd;
+	if (!FindNextOccurrence(selectionText.c_str(), selectionText.length(), currentCursor.mSelectionEnd, nextStart, nextEnd))
+		return;
+
+	mState.AddCursor();
+	mState.mCursors[mState.mCurrentCursor].mInteractiveStart = nextStart;
+	mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd = nextEnd;
+	SetSelection(mState.mCursors[mState.mCurrentCursor].mInteractiveStart, mState.mCursors[mState.mCurrentCursor].mInteractiveEnd, mSelectionMode, -1, true);
+	mState.SortCursorsFromTopToBottom();
+	MergeCursorsIfPossible();
+	EnsureCursorVisible();
+}
+
 const TextEditor::Palette& TextEditor::GetDarkPalette()
 {
 	const static Palette p = { {
@@ -3053,7 +3114,7 @@ float TextEditor::TextDistanceToLineStart(const Coordinates& aFrom) const
 void TextEditor::EnsureCursorVisible(int aCursor)
 {
 	if (aCursor == -1)
-		aCursor = mState.mCurrentCursor;
+		aCursor = mState.GetLastAddedCursorIndex();
 
 	if (!mWithinRender)
 	{

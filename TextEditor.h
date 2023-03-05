@@ -326,6 +326,8 @@ public:
 	void Undo(int aSteps = 1);
 	void Redo(int aSteps = 1);
 
+	void AddCursorForNextOccurrence();
+
 	static const Palette& GetMarianaPalette();
 	static const Palette& GetDarkPalette();
 	static const Palette& GetLightPalette();
@@ -351,11 +353,30 @@ private:
 	struct EditorState
 	{
 		int mCurrentCursor = 0;
+		int mLastAddedCursor = 0;
 		std::vector<Cursor> mCursors = { {{0,0}} };
 		void AddCursor()
 		{
+			// vector is never resized to smaller size, mCurrentCursor points to last available cursor in vector
 			mCurrentCursor++;
 			mCursors.resize(mCurrentCursor + 1);
+			mLastAddedCursor = mCurrentCursor;
+		}
+		int GetLastAddedCursorIndex()
+		{
+			return mLastAddedCursor > mCurrentCursor ? 0 : mLastAddedCursor;
+		}
+		void SortCursorsFromTopToBottom()
+		{
+			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mCursorPosition;
+			std::sort(mCursors.begin(), mCursors.begin() + (mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
+				{
+					return a.mSelectionStart < b.mSelectionStart;
+				});
+			// update last added cursor index to be valid after sort
+			for (int c = mCurrentCursor; c > -1; c--)
+				if (mCursors[c].mCursorPosition == lastAddedCursorPos)
+					mLastAddedCursor = c;
 		}
 	};
 
@@ -427,6 +448,8 @@ private:
 	void HandleMouseInputs();
 	void UpdatePalette();
 	void Render(bool aParentIsFocused = false);
+
+	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd);
 
 	float mLineSpacing;
 	Lines mLines;
