@@ -2587,6 +2587,15 @@ void TextEditor::ClearExtraCursors()
 	mState.mCurrentCursor = 0;
 }
 
+void TextEditor::ClearSelections()
+{
+	for (int c = mState.mCurrentCursor; c > -1; c--)
+		mState.mCursors[c].mInteractiveEnd =
+		mState.mCursors[c].mInteractiveStart =
+		mState.mCursors[c].mSelectionEnd =
+		mState.mCursors[c].mSelectionStart = mState.mCursors[c].mCursorPosition;
+}
+
 void TextEditor::SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor)
 {
 	if (aCursor == -1)

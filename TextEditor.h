@@ -327,6 +327,7 @@ public:
 	void Redo(int aSteps = 1);
 
 	void ClearExtraCursors();
+	void ClearSelections();
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1);
 	void AddCursorForNextOccurrence();
 
