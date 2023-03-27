@@ -1386,15 +1386,17 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 		int j = lineStartIndex;
 		for (; j < mLines[currentLine].size(); j++)
 		{
-			if (aTextIndex == aTextSize)
+			if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
 				break;
 			if (aText[aTextIndex] == mLines[currentLine][j].mChar)
 				aTextIndex++;
 			else
 				aTextIndex = 0;
 		}
-		if (aTextIndex == aTextSize)
+		if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
 		{
+			if (aText[aTextIndex] == '\0')
+				aTextSize = aTextIndex;
 			outStart = { currentLine, GetCharacterColumn(currentLine, j - aTextSize) };
 			outEnd = { currentLine, GetCharacterColumn(currentLine, j) };
 			return true;
@@ -1406,15 +1408,17 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 		int j = 0;
 		for (; j < GetCharacterIndexR(aFrom); j++)
 		{
-			if (aTextIndex == aTextSize)
+			if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
 				break;
 			if (aText[aTextIndex] == mLines[aFrom.mLine][j].mChar)
 				aTextIndex++;
 			else
 				aTextIndex = 0;
 		}
-		if (aTextIndex == aTextSize)
+		if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
 		{
+			if (aText[aTextIndex] == '\0')
+				aTextSize = aTextIndex;
 			outStart = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j - aTextSize) };
 			outEnd = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j) };
 			return true;
