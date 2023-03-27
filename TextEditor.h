@@ -326,6 +326,8 @@ public:
 	void Undo(int aSteps = 1);
 	void Redo(int aSteps = 1);
 
+	void ClearExtraCursors();
+	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1);
 	void AddCursorForNextOccurrence();
 
 	static const Palette& GetMarianaPalette();

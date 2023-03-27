@@ -2582,6 +2582,23 @@ void TextEditor::Redo(int aSteps)
 		mUndoBuffer[mUndoIndex++].Redo(this);
 }
 
+void TextEditor::ClearExtraCursors()
+{
+	mState.mCurrentCursor = 0;
+}
+
+void TextEditor::SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor)
+{
+	if (aCursor == -1)
+		aCursor = mState.mCurrentCursor;
+	Coordinates nextStart, nextEnd;
+	FindNextOccurrence(aText, aTextSize, mState.mCursors[aCursor].mCursorPosition, nextStart, nextEnd);
+	mState.mCursors[aCursor].mInteractiveStart = nextStart;
+	mState.mCursors[aCursor].mCursorPosition = mState.mCursors[aCursor].mInteractiveEnd = nextEnd;
+	SetSelection(mState.mCursors[aCursor].mInteractiveStart, mState.mCursors[aCursor].mInteractiveEnd, mSelectionMode, aCursor);
+	EnsureCursorVisible(aCursor);
+}
+
 void TextEditor::AddCursorForNextOccurrence()
 {
 	const Cursor& currentCursor = mState.mCursors[mState.GetLastAddedCursorIndex()];
