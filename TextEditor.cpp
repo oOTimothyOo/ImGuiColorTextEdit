@@ -995,8 +995,13 @@ void TextEditor::HandleMouseInputs()
 				else
 					mState.mCurrentCursor = 0;
 
-				mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveStart = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd = ScreenPosToCoordinates(ImGui::GetMousePos());
-				mSelectionMode = SelectionMode::Line;
+				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
+				mState.mCursors[mState.mCurrentCursor].mInteractiveStart = { cursorCoords.mLine, 0 };
+				mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd =
+					cursorCoords.mLine < mLines.size() - 1 ?
+						Coordinates{ cursorCoords.mLine + 1, 0 } :
+						Coordinates{ cursorCoords.mLine, GetCharacterColumn(cursorCoords.mLine, mLines[cursorCoords.mLine].size()) };
+				mSelectionMode = SelectionMode::Normal;
 				SetSelection(mState.mCursors[mState.mCurrentCursor].mInteractiveStart, mState.mCursors[mState.mCurrentCursor].mInteractiveEnd, mSelectionMode);
 
 				mLastClick = -1.0f;
@@ -1036,9 +1041,16 @@ void TextEditor::HandleMouseInputs()
 					mState.mCurrentCursor = 0;
 
 				bool isOverLineNumber;
-				mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveStart = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite, &isOverLineNumber);
+				Coordinates cursorCoords = mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveStart = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite, &isOverLineNumber);
 				if (isOverLineNumber)
-					mSelectionMode = SelectionMode::Line;
+				{
+					mState.mCursors[mState.mCurrentCursor].mInteractiveStart = { cursorCoords.mLine, 0 };
+					mState.mCursors[mState.mCurrentCursor].mCursorPosition = mState.mCursors[mState.mCurrentCursor].mInteractiveEnd =
+						cursorCoords.mLine < mLines.size() - 1 ?
+						Coordinates{ cursorCoords.mLine + 1, 0 } :
+						Coordinates{ cursorCoords.mLine, GetCharacterColumn(cursorCoords.mLine, mLines[cursorCoords.mLine].size()) };
+					mSelectionMode = SelectionMode::Normal;
+				}
 				else if (ctrl)
 					mSelectionMode = SelectionMode::Word;
 				else
