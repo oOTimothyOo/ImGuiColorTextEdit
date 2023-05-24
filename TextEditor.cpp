@@ -1915,7 +1915,7 @@ void TextEditor::MoveUp(int aAmount, bool aSelect)
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			SetSelection(mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionStart, SelectionMode::Normal, c);
-			SetCursorPosition(mState.mCursors[c].mSelectionStart);
+			SetCursorPosition(mState.mCursors[c].mSelectionStart, c);
 		}
 	}
 	else
@@ -1954,7 +1954,7 @@ void TextEditor::MoveDown(int aAmount, bool aSelect)
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			SetSelection(mState.mCursors[c].mSelectionEnd, mState.mCursors[c].mSelectionEnd, SelectionMode::Normal, c);
-			SetCursorPosition(mState.mCursors[c].mSelectionEnd);
+			SetCursorPosition(mState.mCursors[c].mSelectionEnd, c);
 		}
 	}
 	else
@@ -2004,7 +2004,7 @@ void TextEditor::MoveLeft(int aAmount, bool aSelect, bool aWordMode)
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			SetSelection(mState.mCursors[c].mSelectionStart, mState.mCursors[c].mSelectionStart, SelectionMode::Normal, c);
-			SetCursorPosition(mState.mCursors[c].mSelectionStart);
+			SetCursorPosition(mState.mCursors[c].mSelectionStart, c);
 		}
 	}
 	else
@@ -2090,7 +2090,7 @@ void TextEditor::MoveRight(int aAmount, bool aSelect, bool aWordMode)
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			SetSelection(mState.mCursors[c].mSelectionEnd, mState.mCursors[c].mSelectionEnd, SelectionMode::Normal, c);
-			SetCursorPosition(mState.mCursors[c].mSelectionEnd);
+			SetCursorPosition(mState.mCursors[c].mSelectionEnd, c);
 		}
 	}
 	else
