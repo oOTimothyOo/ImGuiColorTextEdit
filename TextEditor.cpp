@@ -2792,10 +2792,10 @@ void TextEditor::MergeCursorsIfPossible()
 		// merge cursors if they overlap
 		for (int c = mState.mCurrentCursor; c > 0; c--)// iterate backwards through pairs
 		{
-			int pc = c - 1;
+			int pc = c - 1; // pc for previous cursor
 
 			bool pcContainsC = mState.mCursors[pc].mSelectionEnd >= mState.mCursors[c].mSelectionEnd;
-			bool pcContainsStartOfC = mState.mCursors[pc].mSelectionEnd >= mState.mCursors[c].mSelectionStart;
+			bool pcContainsStartOfC = mState.mCursors[pc].mSelectionEnd > mState.mCursors[c].mSelectionStart;
 
 			if (pcContainsC)
 			{
