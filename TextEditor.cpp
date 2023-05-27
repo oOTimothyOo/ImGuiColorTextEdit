@@ -975,6 +975,24 @@ void TextEditor::HandleMouseInputs()
 	auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
 	auto alt = io.ConfigMacOSXBehaviors ? io.KeyCtrl : io.KeyAlt;
 
+	/*
+	Pan with middle mouse button
+	*/
+	if (ImGui::IsMouseReleased(2))
+		mState.mPanning = false;
+	if (mState.mPanning)
+	{
+		ImVec2 scroll = { ImGui::GetScrollX(), ImGui::GetScrollY() };
+		ImVec2 currentMousePos = ImGui::GetMouseDragDelta(2);
+		ImVec2 mouseDelta = {
+			currentMousePos.x - mState.mLastMousePos.x,
+			currentMousePos.y - mState.mLastMousePos.y
+		};
+		ImGui::SetScrollY(scroll.y - mouseDelta.y);
+		ImGui::SetScrollX(scroll.x - mouseDelta.x);
+		mState.mLastMousePos = currentMousePos;
+	}
+
 	if (ImGui::IsWindowHovered())
 	{
 		auto click = ImGui::IsMouseClicked(0);
@@ -983,6 +1001,16 @@ void TextEditor::HandleMouseInputs()
 			auto doubleClick = ImGui::IsMouseDoubleClicked(0);
 			auto t = ImGui::GetTime();
 			auto tripleClick = click && !doubleClick && (mLastClick != -1.0f && (t - mLastClick) < io.MouseDoubleClickTime);
+
+			/*
+			Pan with middle mouse button
+			*/
+
+			if (!mState.mPanning && ImGui::IsMouseDown(2))
+			{
+				mState.mPanning = true;
+				mState.mLastMousePos = ImGui::GetMouseDragDelta(2);
+			}
 
 			/*
 			Left mouse button triple click

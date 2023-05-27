@@ -355,6 +355,8 @@ private:
 
 	struct EditorState
 	{
+		bool mPanning = false;
+		ImVec2 mLastMousePos;
 		int mCurrentCursor = 0;
 		int mLastAddedCursor = 0;
 		std::vector<Cursor> mCursors = { {{0,0}} };

@@ -4,8 +4,9 @@ void TextEditor::ImGuiDebugPanel(const std::string& panelName)
 {
 	ImGui::Begin(panelName.c_str());
 
-	if (ImGui::CollapsingHeader("Cursor info"))
+	if (ImGui::CollapsingHeader("Editor state info"))
 	{
+		ImGui::Checkbox("Panning", &mState.mPanning);
 		ImGui::DragInt("Cursor count", &mState.mCurrentCursor);
 		for (int i = 0; i <= mState.mCurrentCursor; i++)
 		{
