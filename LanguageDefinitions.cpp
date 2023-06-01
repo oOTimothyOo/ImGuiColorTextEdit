@@ -929,7 +929,8 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Json()
 
 		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("\\\"(\\\\.|[^\\\"])*\\\"", PaletteIndex::String));
 		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?", PaletteIndex::Number));
-		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\\[\\]\\{\\}\\!\\%\\^\\&\\*\\(\\)\\-\\+\\=\\~\\|\\<\\>\\?\\/\\;\\,\\.]", PaletteIndex::Punctuation));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("[\\[\\]\\{\\}\\!\\%\\^\\&\\*\\(\\)\\-\\+\\=\\~\\|\\<\\>\\?\\/\\;\\,\\.\\:]", PaletteIndex::Punctuation));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>("false|true", PaletteIndex::Keyword));
 
 		langDef.mCommentStart = "/*";
 		langDef.mCommentEnd = "*/";
