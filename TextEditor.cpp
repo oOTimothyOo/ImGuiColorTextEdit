@@ -928,10 +928,12 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			Backspace(ctrl);
 		else if (!IsReadOnly() && !alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_K)))
 			RemoveCurrentLines();
-        else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftBracket)))
+		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftBracket)))
 			ChangeCurrentLinesIndentation(false);
-        else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightBracket)))
+		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightBracket)))
 			ChangeCurrentLinesIndentation(true);
+		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Slash)))
+			ToggleLineComment();
 		else if (!alt && !ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			mOverwrite ^= true;
 		else if (isCtrlOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
@@ -1650,7 +1652,7 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 			}
 
 			u.mOperations.push_back(removeOperation);
-			u.mOperations.push_back({ addedText , start, rangeEnd, UndoOperationType::Add });
+			u.mOperations.push_back({ addedText, start, rangeEnd, UndoOperationType::Add });
 			u.mAfter = mState;
 
 			mState.mCursors[c].mSelectionStart = start;
@@ -1663,6 +1665,80 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 	EnsureCursorVisible();
 	if (u.mOperations.size() > 0)
 		AddUndo(u);
+}
+
+void TextEditor::ToggleLineComment()
+{
+	assert(!mReadOnly);
+	const std::string& commentString = mLanguageDefinition->mSingleLineComment;
+
+	UndoRecord u;
+	u.mBefore = mState;
+
+	bool shouldAddComment = false;
+	for (int c = mState.mCurrentCursor; c > -1 && !shouldAddComment; c--)
+	{
+		for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine && !shouldAddComment; currentLine--)
+		{
+			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+				continue;
+			int currentIndex = 0;
+			while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
+			if (currentIndex == mLines[currentLine].size())
+				continue;
+			int i = 0;
+			while (i < commentString.length() && currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
+			bool matched = i == commentString.length();
+			shouldAddComment |= !matched;
+		}
+	}
+
+	if (shouldAddComment)
+	{
+		for (int c = mState.mCurrentCursor; c > -1; c--)
+		{
+			for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
+			{
+				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+					continue;
+				Coordinates lineStart = { currentLine, 0 };
+				Coordinates insertionEnd = lineStart;
+				InsertTextAt(insertionEnd, (commentString + ' ').c_str()); // sets insertion end
+				u.mOperations.push_back({ (commentString + ' ') , lineStart, insertionEnd, UndoOperationType::Add });
+				Colorize(lineStart.mLine, 1);
+			}
+		}
+	}
+	else
+	{
+		for (int c = mState.mCurrentCursor; c > -1; c--)
+		{
+			for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
+			{
+				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+					continue;
+				int currentIndex = 0;
+				while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
+				if (currentIndex == mLines[currentLine].size())
+					continue;
+				int i = 0;
+				while (i < commentString.length() && currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
+				bool matched = i == commentString.length();
+				assert(matched);
+				if (currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == ' ')
+					i++;
+
+				Coordinates start = { currentLine, GetCharacterColumn(currentLine, currentIndex) };
+				Coordinates end = { currentLine, GetCharacterColumn(currentLine, currentIndex + i) };
+				u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete});
+				DeleteRange(start, end);
+				Colorize(currentLine, 1);
+			}
+		}
+	}
+
+	u.mAfter = mState;
+	AddUndo(u);
 }
 
 void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)

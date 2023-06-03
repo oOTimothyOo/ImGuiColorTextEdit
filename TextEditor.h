@@ -125,6 +125,11 @@ public:
 		{
 			return Coordinates(mLine - o.mLine, mColumn - o.mColumn);
 		}
+
+		Coordinates operator +(const Coordinates& o)
+		{
+			return Coordinates(mLine + o.mLine, mColumn + o.mColumn);
+		}
 	};
 
 	struct Identifier
@@ -443,6 +448,7 @@ private:
 	void AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph);
 	Line& InsertLine(int aIndex);
 	void ChangeCurrentLinesIndentation(bool aIncrease);
+	void ToggleLineComment();
 	void EnterCharacter(ImWchar aChar, bool aShift);
 	void Backspace(bool aWordMode = false);
 	void DeleteSelection(int aCursor = -1);
