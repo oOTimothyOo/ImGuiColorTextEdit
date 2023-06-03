@@ -1670,6 +1670,8 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 void TextEditor::ToggleLineComment()
 {
 	assert(!mReadOnly);
+	if (mLanguageDefinition == nullptr)
+		return;
 	const std::string& commentString = mLanguageDefinition->mSingleLineComment;
 
 	UndoRecord u;
