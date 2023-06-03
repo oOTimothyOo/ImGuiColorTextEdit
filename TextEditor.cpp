@@ -1682,7 +1682,7 @@ void TextEditor::ToggleLineComment()
 	{
 		for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine && !shouldAddComment; currentLine--)
 		{
-			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
 				continue;
 			int currentIndex = 0;
 			while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
@@ -1701,7 +1701,7 @@ void TextEditor::ToggleLineComment()
 		{
 			for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
 			{
-				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
 					continue;
 				Coordinates lineStart = { currentLine, 0 };
 				Coordinates insertionEnd = lineStart;
@@ -1717,7 +1717,7 @@ void TextEditor::ToggleLineComment()
 		{
 			for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
 			{
-				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd) // when selection ends at line start
+				if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
 					continue;
 				int currentIndex = 0;
 				while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
