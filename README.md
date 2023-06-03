@@ -1,3 +1,5 @@
+Feel free to join my [discord server](https://discord.gg/H7paVYPUUA) if you want to discuss anything about this fork.
+
 # ImGuiColorTextEdit
 Syntax highlighting text editor for ImGui
 
