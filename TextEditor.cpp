@@ -1888,6 +1888,8 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor)
 	if (mState.mCursors[aCursor].mCursorPosition != aPosition)
 	{
 		mState.mCursors[aCursor].mCursorPosition = aPosition;
+		mState.mCursors[aCursor].mSelectionEnd = mState.mCursors[aCursor].mSelectionStart = aPosition;
+		mState.mCursors[aCursor].mInteractiveEnd = mState.mCursors[aCursor].mInteractiveStart = aPosition;
 		mState.mCursors[aCursor].mCursorPositionChanged = true;
 		EnsureCursorVisible();
 	}
