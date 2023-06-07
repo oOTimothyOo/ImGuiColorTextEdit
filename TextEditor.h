@@ -262,7 +262,11 @@ public:
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
 			if (mState.mCursors[c].mCursorPosition.mLine >= aFirstLineIndex)
-				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex), mState.mCursors[c].mCursorPosition.mColumn }, c);
+			{
+				int targetLine = mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex);
+				targetLine = targetLine < 0 ? 0 : targetLine;
+				SetCursorPosition({ targetLine , mState.mCursors[c].mCursorPosition.mColumn }, c);
+			}
 		}
 	}
 	inline void OnLineAdded(int aLineIndex)

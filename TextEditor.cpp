@@ -2549,6 +2549,7 @@ void TextEditor::SelectWordUnderCursor()
 
 void TextEditor::SelectAll()
 {
+	mState.mCurrentCursor = 0;
 	SetSelection(Coordinates(0, 0), Coordinates((int)mLines.size(), 0), SelectionMode::Line);
 }
 
