@@ -1581,83 +1581,33 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 
 	for (int c = mState.mCurrentCursor; c > -1; c--)
 	{
-		auto start = mState.mCursors[c].mSelectionStart;
-		auto end = mState.mCursors[c].mSelectionEnd;
-		auto originalEnd = end;
-
-		if (start > end)
-			std::swap(start, end);
-		start.mColumn = 0;
-		//			end.mColumn = end.mLine < mLines.size() ? mLines[end.mLine].size() : 0;
-		if (end.mColumn == 0 && end.mLine > 0)
-			--end.mLine;
-		if (end.mLine >= (int)mLines.size())
-			end.mLine = mLines.empty() ? 0 : (int)mLines.size() - 1;
-		end.mColumn = GetLineMaxColumn(end.mLine);
-
-		//if (end.mColumn >= GetLineMaxColumn(end.mLine))
-		//	end.mColumn = GetLineMaxColumn(end.mLine) - 1;
-
-		UndoOperation removeOperation = { GetText(start, end) , start, end, UndoOperationType::Delete };
-
-		bool modified = false;
-
-		for (int i = start.mLine; i <= end.mLine; i++)
+		for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
 		{
-			auto& line = mLines[i];
-			if (!aIncrease)
-			{
-				if (!line.empty())
+			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
+				continue;
 
-				{
-					if (line.front().mChar == '\t')
-					{
-						RemoveGlyphsFromLine(i, 0, 1);
-						modified = true;
-					}
-					else
-					{
-						for (int j = 0; j < mTabSize && !line.empty() && line.front().mChar == ' '; j++)
-						{
-							RemoveGlyphsFromLine(i, 0, 1);
-							modified = true;
-						}
-					}
-				}
-			}
-			else if (mLines[i].size() > 0)
+			if (aIncrease)
 			{
-				AddGlyphToLine(i, 0, Glyph('\t', TextEditor::PaletteIndex::Background));
-				modified = true;
-			}
-		}
-
-		if (modified)
-		{
-			start = Coordinates(start.mLine, GetCharacterColumn(start.mLine, 0));
-			Coordinates rangeEnd;
-			std::string addedText;
-			if (originalEnd.mColumn != 0)
-			{
-				end = Coordinates(end.mLine, GetLineMaxColumn(end.mLine));
-				rangeEnd = end;
-				addedText = GetText(start, end);
+				Coordinates lineStart = { currentLine, 0 };
+				Coordinates insertionEnd = lineStart;
+				InsertTextAt(insertionEnd, "\t"); // sets insertion end
+				u.mOperations.push_back({ "\t", lineStart, insertionEnd, UndoOperationType::Add });
+				Colorize(lineStart.mLine, 1);
 			}
 			else
 			{
-				end = Coordinates(originalEnd.mLine, 0);
-				rangeEnd = Coordinates(end.mLine - 1, GetLineMaxColumn(end.mLine - 1));
-				addedText = GetText(start, rangeEnd);
+				Coordinates start = { currentLine, 0 };
+				Coordinates end = { currentLine, mTabSize };
+				int charIndex = GetCharacterIndexL(end) - 1;
+				while (charIndex > -1 && (mLines[currentLine][charIndex].mChar == ' ' || mLines[currentLine][charIndex].mChar == '\t')) charIndex--;
+				bool onlySpaceCharactersFound = charIndex == -1;
+				if (onlySpaceCharactersFound)
+				{
+					u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
+					DeleteRange(start, end);
+					Colorize(currentLine, 1);
+				}
 			}
-
-			u.mOperations.push_back(removeOperation);
-			u.mOperations.push_back({ addedText, start, rangeEnd, UndoOperationType::Add });
-			u.mAfter = mState;
-
-			mState.mCursors[c].mSelectionStart = start;
-			mState.mCursors[c].mSelectionEnd = end;
-
-			mTextChanged = true;
 		}
 	}
 
