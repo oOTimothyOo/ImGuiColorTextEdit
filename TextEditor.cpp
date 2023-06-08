@@ -2,6 +2,7 @@
 #include <chrono>
 #include <string>
 #include <cmath>
+#include <set>
 
 #include "TextEditor.h"
 
@@ -931,6 +932,10 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			ChangeCurrentLinesIndentation(false);
 		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightBracket)))
 			ChangeCurrentLinesIndentation(true);
+		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
+			MoveUpCurrentLines();
+		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
+			MoveDownCurrentLines();
 		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Slash)))
 			ToggleLineComment();
 		else if (!alt && !ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
@@ -1603,7 +1608,7 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 				bool onlySpaceCharactersFound = charIndex == -1;
 				if (onlySpaceCharactersFound)
 				{
-					u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete });
+					u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Delete });
 					DeleteRange(start, end);
 					Colorize(currentLine, 1);
 				}
@@ -1614,6 +1619,99 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 	EnsureCursorVisible();
 	if (u.mOperations.size() > 0)
 		AddUndo(u);
+}
+
+void TextEditor::MoveUpCurrentLines()
+{
+	assert(!mReadOnly);
+
+	UndoRecord u;
+	u.mBefore = mState;
+
+	std::set<int> affectedLines;
+	int minLine = -1;
+	int maxLine = -1;
+	for (int c = mState.mCurrentCursor; c > -1; c--) // cursors are expected to be sorted from top to bottom
+	{
+		for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
+		{
+			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
+				continue;
+			affectedLines.insert(currentLine);
+			minLine = minLine == -1 ? currentLine : (currentLine < minLine ? currentLine : minLine);
+			maxLine = maxLine == -1 ? currentLine : (currentLine > maxLine ? currentLine : maxLine);
+		}
+	}
+	if (minLine == 0) // can't move up anymore
+		return;
+
+	Coordinates start = { minLine - 1, 0 };
+	Coordinates end = { maxLine, GetLineMaxColumn(maxLine) };
+	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Delete });
+
+	for (int line : affectedLines) // lines should be sorted here
+		std::swap(mLines[line - 1], mLines[line]);
+	for (int c = mState.mCurrentCursor; c > -1; c--)
+	{
+		mState.mCursors[c].mCursorPosition.mLine -= 1;
+		mState.mCursors[c].mInteractiveStart.mLine -= 1;
+		mState.mCursors[c].mInteractiveEnd.mLine -= 1;
+		mState.mCursors[c].mSelectionStart.mLine -= 1;
+		mState.mCursors[c].mSelectionEnd.mLine -= 1;
+		// no need to set mCursorPositionChanged as cursors will remain sorted
+	}
+
+	end = { maxLine, GetLineMaxColumn(maxLine) }; // this line is swapped with line above, need to find new max column
+	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Add });
+	u.mAfter = mState;
+	AddUndo(u);
+}
+
+void TextEditor::MoveDownCurrentLines()
+{
+	assert(!mReadOnly);
+
+	UndoRecord u;
+	u.mBefore = mState;
+
+	std::set<int> affectedLines;
+	int minLine = -1;
+	int maxLine = -1;
+	for (int c = 0; c <= mState.mCurrentCursor; c++) // cursors are expected to be sorted from top to bottom
+	{
+		for (int currentLine = mState.mCursors[c].mSelectionEnd.mLine; currentLine >= mState.mCursors[c].mSelectionStart.mLine; currentLine--)
+		{
+			if (Coordinates{ currentLine, 0 } == mState.mCursors[c].mSelectionEnd && mState.mCursors[c].mSelectionEnd != mState.mCursors[c].mSelectionStart) // when selection ends at line start
+				continue;
+			affectedLines.insert(currentLine);
+			minLine = minLine == -1 ? currentLine : (currentLine < minLine ? currentLine : minLine);
+			maxLine = maxLine == -1 ? currentLine : (currentLine > maxLine ? currentLine : maxLine);
+		}
+	}
+	if (maxLine == mLines.size() - 1) // can't move down anymore
+		return;
+
+	Coordinates start = { minLine, 0 };
+	Coordinates end = { maxLine + 1, GetLineMaxColumn(maxLine + 1)};
+	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Delete });
+
+	std::set<int>::reverse_iterator rit;
+	for (rit = affectedLines.rbegin(); rit != affectedLines.rend(); rit++) // lines should be sorted here
+		std::swap(mLines[*rit + 1], mLines[*rit]);
+	for (int c = mState.mCurrentCursor; c > -1; c--)
+	{
+		mState.mCursors[c].mCursorPosition.mLine += 1;
+		mState.mCursors[c].mInteractiveStart.mLine += 1;
+		mState.mCursors[c].mInteractiveEnd.mLine += 1;
+		mState.mCursors[c].mSelectionStart.mLine += 1;
+		mState.mCursors[c].mSelectionEnd.mLine += 1;
+		// no need to set mCursorPositionChanged as cursors will remain sorted
+	}
+
+	end = { maxLine + 1, GetLineMaxColumn(maxLine + 1) }; // this line is swapped with line below, need to find new max column
+	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Add });
+	u.mAfter = mState;
+	AddUndo(u);
 }
 
 void TextEditor::ToggleLineComment()
