@@ -345,11 +345,12 @@ private:
 
 	struct Cursor
 	{
-		Coordinates mInteractiveStart = { 0,0 };
-		Coordinates mInteractiveEnd = { 0,0 };
+		Coordinates mInteractiveStart = { 0, 0 };
+		Coordinates mInteractiveEnd = { 0, 0 };
 		bool mCursorPositionChanged = false;
 		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
 		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		inline bool HasSelection() const { return mInteractiveStart != mInteractiveStart; }
 	};
 
 	struct EditorState
