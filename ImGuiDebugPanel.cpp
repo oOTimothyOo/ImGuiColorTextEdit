@@ -10,11 +10,15 @@ void TextEditor::ImGuiDebugPanel(const std::string& panelName)
 		ImGui::DragInt("Cursor count", &mState.mCurrentCursor);
 		for (int i = 0; i <= mState.mCurrentCursor; i++)
 		{
-			ImGui::DragInt2("Cursor", &mState.mCursors[i].mCursorPosition.mLine);
-			ImGui::DragInt2("Selection start", &mState.mCursors[i].mSelectionStart.mLine);
-			ImGui::DragInt2("Selection end", &mState.mCursors[i].mSelectionEnd.mLine);
 			ImGui::DragInt2("Interactive start", &mState.mCursors[i].mInteractiveStart.mLine);
 			ImGui::DragInt2("Interactive end", &mState.mCursors[i].mInteractiveEnd.mLine);
+		}
+	}
+	if (ImGui::CollapsingHeader("Lines"))
+	{
+		for (int i = 0; i < mLines.size(); i++)
+		{
+			ImGui::Text("%d", mLines[i].size());
 		}
 	}
 	if (ImGui::CollapsingHeader("Undo"))

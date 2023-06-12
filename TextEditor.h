@@ -42,13 +42,6 @@ public:
 		Max
 	};
 
-	enum class SelectionMode
-	{
-		Normal,
-		Word,
-		Line
-	};
-
 	struct Breakpoint
 	{
 		int mLine;
@@ -243,17 +236,17 @@ public:
 	void SetColorizerEnable(bool aValue);
 
 	Coordinates GetCursorPosition() const { return GetActualCursorCoordinates(); }
-	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1);
-	void SetCursorPosition(int aLine, int aCharIndex, int aCursor = -1);
+	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1, bool aClearSelection = true);
+	void SetCursorPosition(int aLine, int aCharIndex, int aCursor = -1, bool aClearSelection = true);
 
 	inline void OnLineDeleted(int aLineIndex, const std::unordered_set<int>* aHandledCursors = nullptr)
 	{
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
-			if (mState.mCursors[c].mCursorPosition.mLine >= aLineIndex)
+			if (mState.mCursors[c].mInteractiveEnd.mLine >= aLineIndex)
 			{
 				if (aHandledCursors == nullptr || aHandledCursors->find(c) == aHandledCursors->end()) // move up if has not been handled already
-					SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine - 1, mState.mCursors[c].mCursorPosition.mColumn }, c);
+					SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine - 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
 			}
 		}
 	}
@@ -261,11 +254,11 @@ public:
 	{
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
-			if (mState.mCursors[c].mCursorPosition.mLine >= aFirstLineIndex)
+			if (mState.mCursors[c].mInteractiveEnd.mLine >= aFirstLineIndex)
 			{
-				int targetLine = mState.mCursors[c].mCursorPosition.mLine - (aLastLineIndex - aFirstLineIndex);
+				int targetLine = mState.mCursors[c].mInteractiveEnd.mLine - (aLastLineIndex - aFirstLineIndex);
 				targetLine = targetLine < 0 ? 0 : targetLine;
-				SetCursorPosition({ targetLine , mState.mCursors[c].mCursorPosition.mColumn }, c);
+				SetCursorPosition({ targetLine , mState.mCursors[c].mInteractiveEnd.mColumn }, c);
 			}
 		}
 	}
@@ -273,8 +266,8 @@ public:
 	{
 		for (int c = 0; c <= mState.mCurrentCursor; c++)
 		{
-			if (mState.mCursors[c].mCursorPosition.mLine >= aLineIndex)
-				SetCursorPosition({ mState.mCursors[c].mCursorPosition.mLine + 1, mState.mCursors[c].mCursorPosition.mColumn }, c);
+			if (mState.mCursors[c].mInteractiveEnd.mLine >= aLineIndex)
+				SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine + 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
 		}
 	}
 
@@ -317,11 +310,8 @@ public:
 	void MoveHome(bool aSelect = false);
 	void MoveEnd(bool aSelect = false);
 
-	void SetSelectionStart(const Coordinates& aPosition, int aCursor = -1);
-	void SetSelectionEnd(const Coordinates& aPosition, int aCursor = -1);
-	void SetSelection(const Coordinates& aStart, const Coordinates& aEnd, SelectionMode aMode = SelectionMode::Normal, int aCursor = -1, bool isSpawningNewCursor = false);
-	void SetSelection(int aStartLine, int aStartCharIndex, int aEndLine, int aEndCharIndex, SelectionMode aMode = SelectionMode::Normal, int aCursor = -1, bool isSpawningNewCursor = false);
-	void SelectWordUnderCursor();
+	void SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor = -1);
+	void SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor = -1);
 	void SelectAll();
 	bool HasSelection() const;
 
@@ -355,12 +345,11 @@ private:
 
 	struct Cursor
 	{
-		Coordinates mCursorPosition = { 0, 0 };
-		Coordinates mSelectionStart = { 0,0 };
-		Coordinates mSelectionEnd = { 0,0 };
 		Coordinates mInteractiveStart = { 0,0 };
 		Coordinates mInteractiveEnd = { 0,0 };
 		bool mCursorPositionChanged = false;
+		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
 	};
 
 	struct EditorState
@@ -383,14 +372,14 @@ private:
 		}
 		void SortCursorsFromTopToBottom()
 		{
-			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mCursorPosition;
+			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mInteractiveEnd;
 			std::sort(mCursors.begin(), mCursors.begin() + (mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
 				{
-					return a.mSelectionStart < b.mSelectionStart;
+					return a.GetSelectionStart() < b.GetSelectionStart();
 				});
 			// update last added cursor index to be valid after sort
 			for (int c = mCurrentCursor; c > -1; c--)
-				if (mCursors[c].mCursorPosition == lastAddedCursorPos)
+				if (mCursors[c].mInteractiveEnd == lastAddedCursorPos)
 					mLastAddedCursor = c;
 		}
 	};
@@ -488,7 +477,6 @@ private:
 	float mTextStart;                   // position (in pixels) where a code line starts relative to the left of the TextEditor.
 	int  mLeftMargin;
 	int mColorRangeMin, mColorRangeMax;
-	SelectionMode mSelectionMode;
 	bool mHandleKeyboardInputs;
 	bool mHandleMouseInputs;
 	bool mIgnoreImGuiChild;
