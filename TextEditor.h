@@ -350,7 +350,7 @@ private:
 		bool mCursorPositionChanged = false;
 		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
 		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
-		inline bool HasSelection() const { return mInteractiveStart != mInteractiveStart; }
+		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
 	};
 
 	struct EditorState
