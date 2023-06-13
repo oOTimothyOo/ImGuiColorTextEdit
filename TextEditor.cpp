@@ -1074,7 +1074,7 @@ void TextEditor::HandleMouseInputs()
 					SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
 				}
 				else
-					SetCursorPosition(cursorCoords, mState.mCurrentCursor);
+					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
 
 				mLastClick = (float)ImGui::GetTime();
 			}
@@ -1084,7 +1084,7 @@ void TextEditor::HandleMouseInputs()
 				mDraggingSelection = true;
 				io.WantCaptureMouse = true;
 				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite);
-				SetCursorPosition(cursorCoords, mState.mCurrentCursor, false);
+				SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex(), false);
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
