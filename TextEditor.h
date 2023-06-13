@@ -230,7 +230,7 @@ public:
 	bool IsReadOnly() const { return mReadOnly; }
 	bool IsTextChanged() const { return mTextChanged; }
 
-	void OnCursorPositionChanged(int aCursor);
+	void OnCursorPositionChanged();
 
 	bool IsColorizerEnabled() const { return mColorizerEnabled; }
 	void SetColorizerEnable(bool aValue);
@@ -347,7 +347,6 @@ private:
 	{
 		Coordinates mInteractiveStart = { 0, 0 };
 		Coordinates mInteractiveEnd = { 0, 0 };
-		bool mCursorPositionChanged = false;
 		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
 		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
 		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
@@ -359,6 +358,7 @@ private:
 		ImVec2 mLastMousePos;
 		int mCurrentCursor = 0;
 		int mLastAddedCursor = 0;
+		bool mCursorPositionChanged = false;
 		std::vector<Cursor> mCursors = { {{0,0}} };
 		void AddCursor()
 		{

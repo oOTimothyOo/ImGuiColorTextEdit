@@ -1452,13 +1452,9 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 
 bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
 {
-	for (int c = 0; c <= mState.mCurrentCursor; c++)
-	{
-		if (mState.mCursors[c].mCursorPositionChanged)
-			OnCursorPositionChanged(c);
-		if (c <= mState.mCurrentCursor)
-			mState.mCursors[c].mCursorPositionChanged = false;
-	}
+	if (mState.mCursorPositionChanged)
+		OnCursorPositionChanged();
+	mState.mCursorPositionChanged = false;
 
 	mWithinRender = true;
 	mTextChanged = false;
@@ -1873,7 +1869,7 @@ void TextEditor::SetReadOnly(bool aValue)
 	mReadOnly = aValue;
 }
 
-void TextEditor::OnCursorPositionChanged(int aCursor)
+void TextEditor::OnCursorPositionChanged()
 {
 	if (mDraggingSelection)
 		return;
@@ -1893,7 +1889,7 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor, bo
 	if (aCursor == -1)
 		aCursor = mState.mCurrentCursor;
 
-	mState.mCursors[aCursor].mCursorPositionChanged = true;
+	mState.mCursorPositionChanged = true;
 	if (aClearSelection)
 		mState.mCursors[aCursor].mInteractiveStart = aPosition;
 	if (mState.mCursors[aCursor].mInteractiveEnd != aPosition)
