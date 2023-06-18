@@ -94,38 +94,6 @@ void TextEditor::UnitTests()
 		assert(GetCharacterIndexR({ 2, 2 }) == -1);
 	}
 
-	// --- Advance --- //
-	{
-		// Returns coordinates one character to the right, taking into account tab size
-		Coordinates testCoords = { 0, 0 };
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 1);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 4);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 5);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 6);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 8);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 9);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 10);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 11);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 12);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 13);
-		Advance(testCoords);
-		assert(testCoords.mLine == 0 && testCoords.mColumn == 16);
-		Advance(testCoords);
-		assert(testCoords.mLine == 1 && testCoords.mColumn == 0);
-		Advance(testCoords);
-		assert(testCoords.mLine == 1 && testCoords.mColumn == 0);
-	}
-
 	// --- GetText --- //
 	{
 		// Gets text from aStart to aEnd, tabs are counted on the start position

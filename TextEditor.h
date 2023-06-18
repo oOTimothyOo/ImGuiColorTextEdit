@@ -301,6 +301,8 @@ public:
 	void InsertText(const std::string& aValue, int aCursor = -1);
 	void InsertText(const char* aValue, int aCursor = -1);
 
+	enum class MoveDirection { Right = 0, Left = 1, Up = 2, Down = 3 };
+	void MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode = false, int aLineCount = 1) const;
 	void MoveUp(int aAmount = 1, bool aSelect = false);
 	void MoveDown(int aAmount = 1, bool aSelect = false);
 	void MoveLeft(int aAmount = 1, bool aSelect = false, bool aWordMode = false);
@@ -341,6 +343,11 @@ public:
 	void ImGuiDebugPanel(const std::string& panelName = "Debug");
 	void UnitTests();
 private:
+	inline bool IsUTFSequence(char c) const
+	{
+		return (c & 0xC0) == 0x80;
+	}
+
 	typedef std::vector<std::pair<boost::regex, PaletteIndex>> RegexList;
 
 	struct Cursor
@@ -419,7 +426,6 @@ private:
 	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
 	Coordinates GetActualCursorCoordinates(int aCursor = -1) const;
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
-	void Advance(Coordinates& aCoordinates) const;
 	void DeleteRange(const Coordinates& aStart, const Coordinates& aEnd);
 	int InsertTextAt(Coordinates& aWhere, const char* aValue);
 	void AddUndo(UndoRecord& aValue);
