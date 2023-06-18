@@ -2235,7 +2235,7 @@ void TextEditor::Backspace(bool aWordMode)
 void TextEditor::SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor)
 {
 	Coordinates startCoords = { aStartLine, GetCharacterColumn(aStartLine, aStartChar) };
-	Coordinates endCoords = { aEndLine, GetCharacterColumn(aEndLine, aStartChar) };
+	Coordinates endCoords = { aEndLine, GetCharacterColumn(aEndLine, aEndChar) };
 	SetSelection(startCoords, endCoords, aCursor);
 }
 
