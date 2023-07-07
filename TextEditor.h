@@ -166,7 +166,6 @@ public:
 		Identifiers mPreprocIdentifiers;
 		std::string mCommentStart, mCommentEnd, mSingleLineComment;
 		char mPreprocChar;
-		bool mAutoIndentation;
 
 		TokenizeCallback mTokenize;
 
@@ -175,7 +174,7 @@ public:
 		bool mCaseSensitive;
 
 		LanguageDefinition()
-			: mPreprocChar('#'), mAutoIndentation(true), mTokenize(nullptr), mCaseSensitive(true)
+			: mPreprocChar('#'), mTokenize(nullptr), mCaseSensitive(true)
 		{
 		}
 
@@ -226,9 +225,11 @@ public:
 	int GetTotalLines() const { return (int)mLines.size(); }
 	bool IsOverwrite() const { return mOverwrite; }
 
-	void SetReadOnly(bool aValue);
-	bool IsReadOnly() const { return mReadOnly; }
-	bool IsTextChanged() const { return mTextChanged; }
+	// Interface functions
+	void SetReadOnlyEnabled(bool aValue);
+	bool IsReadOnlyEnabled() const { return mReadOnly; }
+	void SetAutoIndentEnabled(bool aValue);
+	bool IsAutoIndentEnabled() const { return mAutoIndent; }
 
 	void OnCursorPositionChanged();
 
@@ -476,10 +477,10 @@ private:
 	int mTabSize;
 	bool mOverwrite;
 	bool mReadOnly;
+	bool mAutoIndent;
 	bool mWithinRender;
 	bool mScrollToCursor;
 	bool mScrollToTop;
-	bool mTextChanged;
 	bool mColorizerEnabled;
 	float mTextStart;                   // position (in pixels) where a code line starts relative to the left of the TextEditor.
 	int  mLeftMargin;

@@ -30,10 +30,10 @@ TextEditor::TextEditor()
 	, mTabSize(4)
 	, mOverwrite(false)
 	, mReadOnly(false)
+	, mAutoIndent(true)
 	, mWithinRender(false)
 	, mScrollToCursor(false)
 	, mScrollToTop(false)
-	, mTextChanged(false)
 	, mColorizerEnabled(true)
 	, mTextStart(20.0f)
 	, mLeftMargin(10)
@@ -237,8 +237,6 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
 		if (aStart.mLine < aEnd.mLine)
 			RemoveLines(aStart.mLine + 1, aEnd.mLine + 1);
 	}
-
-	mTextChanged = true;
 }
 
 int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue)
@@ -283,8 +281,6 @@ int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue
 				AddGlyphToLine(aWhere.mLine, cindex++, Glyph(*aValue++, PaletteIndex::Default));
 			aWhere.mColumn = GetCharacterColumn(aWhere.mLine, cindex);
 		}
-
-		mTextChanged = true;
 	}
 
 	return totalLines;
@@ -631,8 +627,6 @@ void TextEditor::RemoveLines(int aStart, int aEnd)
 	mLines.erase(mLines.begin() + aStart, mLines.begin() + aEnd);
 	assert(!mLines.empty());
 
-	mTextChanged = true;
-
 	OnLinesDeleted(aStart, aEnd);
 }
 
@@ -662,8 +656,6 @@ void TextEditor::RemoveLine(int aIndex, const std::unordered_set<int>* aHandledC
 
 	mLines.erase(mLines.begin() + aIndex);
 	assert(!mLines.empty());
-
-	mTextChanged = true;
 
 	OnLineDeleted(aIndex, aHandledCursors);
 }
@@ -873,13 +865,13 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		io.WantCaptureKeyboard = true;
 		io.WantTextInput = true;
 
-		if (!IsReadOnly() && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
+		if (!mReadOnly && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
 			Undo();
-		else if (!IsReadOnly() && isAltOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
+		else if (!mReadOnly && isAltOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
 			Undo();
-		else if (!IsReadOnly() && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y)))
+		else if (!mReadOnly && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y)))
 			Redo();
-		else if (!IsReadOnly() && isShiftShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
+		else if (!mReadOnly && isShiftShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
 			Redo();
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
 			MoveUp(1, shift);
@@ -901,21 +893,21 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			MoveHome(shift);
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
 			MoveEnd(shift);
-		else if (!IsReadOnly() && !alt && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)))
+		else if (!mReadOnly && !alt && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)))
 			Delete(ctrl);
-		else if (!IsReadOnly() && !alt && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
+		else if (!mReadOnly && !alt && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace)))
 			Backspace(ctrl);
-		else if (!IsReadOnly() && !alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_K)))
+		else if (!mReadOnly && !alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_K)))
 			RemoveCurrentLines();
-		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftBracket)))
+		else if (!mReadOnly && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftBracket)))
 			ChangeCurrentLinesIndentation(false);
-		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightBracket)))
+		else if (!mReadOnly && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightBracket)))
 			ChangeCurrentLinesIndentation(true);
 		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)))
 			MoveUpCurrentLines();
 		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)))
 			MoveDownCurrentLines();
-		else if (!IsReadOnly() && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Slash)))
+		else if (!mReadOnly && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Slash)))
 			ToggleLineComment();
 		else if (!alt && !ctrl && !shift && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			mOverwrite ^= true;
@@ -923,9 +915,9 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			Copy();
 		else if (isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C)))
 			Copy();
-		else if (!IsReadOnly() && isShiftOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
+		else if (!mReadOnly && isShiftOnly && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert)))
 			Paste();
-		else if (!IsReadOnly() && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V)))
+		else if (!mReadOnly && isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V)))
 			Paste();
 		else if (isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_X)))
 			Cut();
@@ -935,11 +927,11 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			SelectAll();
 		else if (isShortcut && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_D)))
 			AddCursorForNextOccurrence();
-        else if (!IsReadOnly() && !alt && !ctrl && !shift && !super && (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_KeypadEnter))))
+        else if (!mReadOnly && !alt && !ctrl && !shift && !super && (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter)) || ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_KeypadEnter))))
 			EnterCharacter('\n', false);
-		else if (!IsReadOnly() && !alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab)))
+		else if (!mReadOnly && !alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab)))
 			EnterCharacter('\t', shift);
-		if (!IsReadOnly() && !io.InputQueueCharacters.empty() && !ctrl && !super)
+		if (!mReadOnly && !io.InputQueueCharacters.empty() && !ctrl && !super)
 		{
 			for (int i = 0; i < io.InputQueueCharacters.Size; i++)
 			{
@@ -1436,7 +1428,6 @@ bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 	mState.mCursorPositionChanged = false;
 
 	mWithinRender = true;
-	mTextChanged = false;
 
 	UpdatePalette();
 
@@ -1489,7 +1480,6 @@ void TextEditor::SetText(const std::string& aText)
 		}
 	}
 
-	mTextChanged = true;
 	mScrollToTop = true;
 
 	mUndoBuffer.clear();
@@ -1520,7 +1510,6 @@ void TextEditor::SetTextLines(const std::vector<std::string>& aLines)
 		}
 	}
 
-	mTextChanged = true;
 	mScrollToTop = true;
 
 	mUndoBuffer.clear();
@@ -1779,11 +1768,11 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 
 			added.mText = "";
 			added.mText += (char)aChar;
-			if (mLanguageDefinition != nullptr && mLanguageDefinition->mAutoIndentation)
-				for (size_t it = 0; it < line.size() && isascii(line[it].mChar) && isblank(line[it].mChar); ++it)
+			if (mAutoIndent)
+				for (int i = 0; i < line.size() && isascii(line[i].mChar) && isblank(line[i].mChar); ++i)
 				{
-					newLine.push_back(line[it]);
-					added.mText += line[it].mChar;
+					newLine.push_back(line[i]);
+					added.mText += line[i].mChar;
 				}
 
 			const size_t whitespaceSize = newLine.size();
@@ -1829,8 +1818,6 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 				continue;
 		}
 
-		mTextChanged = true;
-
 		added.mEnd = GetActualCursorCoordinates(c);
 		u.mOperations.push_back(added);
 	}
@@ -1843,9 +1830,14 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 	EnsureCursorVisible();
 }
 
-void TextEditor::SetReadOnly(bool aValue)
+void TextEditor::SetReadOnlyEnabled(bool aValue)
 {
 	mReadOnly = aValue;
+}
+
+void TextEditor::SetAutoIndentEnabled(bool aValue)
+{
+	mAutoIndent = aValue;
 }
 
 void TextEditor::OnCursorPositionChanged()
@@ -2152,8 +2144,6 @@ void TextEditor::Delete(bool aWordMode)
 			}
 		}
 
-		mTextChanged = true;
-
 		for (const auto& pos : positions)
 			Colorize(pos.mLine, 1);
 	}
@@ -2231,7 +2221,7 @@ void TextEditor::Copy()
 
 void TextEditor::Cut()
 {
-	if (IsReadOnly())
+	if (mReadOnly)
 	{
 		Copy();
 	}
@@ -2257,7 +2247,7 @@ void TextEditor::Cut()
 
 void TextEditor::Paste()
 {
-	if (IsReadOnly())
+	if (mReadOnly)
 		return;
 
 	// check if we should do multicursor paste
