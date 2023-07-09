@@ -969,6 +969,15 @@ void TextEditor::HandleMouseInputs()
 		mState.mLastMousePos = currentMousePos;
 	}
 
+	// Mouse left button dragging (=> update selection)
+	if (ImGui::IsMouseDragging(0) && ImGui::IsMouseDown(0))
+	{
+		mDraggingSelection = true;
+		io.WantCaptureMouse = true;
+		Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite);
+		SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex(), false);
+	}
+
 	if (ImGui::IsWindowHovered())
 	{
 		auto click = ImGui::IsMouseClicked(0);
@@ -1048,14 +1057,6 @@ void TextEditor::HandleMouseInputs()
 					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
 
 				mLastClick = (float)ImGui::GetTime();
-			}
-			// Mouse left button dragging (=> update selection)
-			else if (ImGui::IsMouseDragging(0) && ImGui::IsMouseDown(0))
-			{
-				mDraggingSelection = true;
-				io.WantCaptureMouse = true;
-				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite);
-				SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex(), false);
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
