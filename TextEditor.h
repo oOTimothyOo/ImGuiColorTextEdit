@@ -272,15 +272,6 @@ public:
 		}
 	}
 
-	inline void SetHandleMouseInputs(bool aValue) { mHandleMouseInputs = aValue; }
-	inline bool IsHandleMouseInputsEnabled() const { return mHandleMouseInputs; }
-
-	inline void SetHandleKeyboardInputs(bool aValue) { mHandleKeyboardInputs = aValue; }
-	inline bool IsHandleKeyboardInputsEnabled() const { return mHandleKeyboardInputs; }
-
-	inline void SetImGuiChildIgnored(bool aValue) { mIgnoreImGuiChild = aValue; }
-	inline bool IsImGuiChildIgnored() const { return mIgnoreImGuiChild; }
-
 	inline void SetShowWhitespaces(bool aValue) { mShowWhitespaces = aValue; }
 	inline bool IsShowingWhitespaces() const { return mShowWhitespaces; }
 
@@ -485,9 +476,6 @@ private:
 	float mTextStart;                   // position (in pixels) where a code line starts relative to the left of the TextEditor.
 	int  mLeftMargin;
 	int mColorRangeMin, mColorRangeMax;
-	bool mHandleKeyboardInputs;
-	bool mHandleMouseInputs;
-	bool mIgnoreImGuiChild;
 	bool mShowWhitespaces;
 	bool mShowShortTabGlyphs;
 	bool mDraggingSelection = false;

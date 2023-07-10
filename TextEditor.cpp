@@ -40,9 +40,6 @@ TextEditor::TextEditor()
 	, mColorRangeMin(0)
 	, mColorRangeMax(0)
 	, mCheckComments(true)
-	, mHandleKeyboardInputs(true)
-	, mHandleMouseInputs(true)
-	, mIgnoreImGuiChild(false)
 	, mShowWhitespaces(true)
 	, mShowShortTabGlyphs(false)
 	, mStartTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
@@ -1434,27 +1431,16 @@ bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(mPalette[(int)PaletteIndex::Background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-	if (!mIgnoreImGuiChild)
-		ImGui::BeginChild(aTitle, aSize, aBorder, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
+
+	ImGui::BeginChild(aTitle, aSize, aBorder, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 
 	bool isFocused = ImGui::IsWindowFocused();
-	if (mHandleKeyboardInputs)
-	{
-		HandleKeyboardInputs(aParentIsFocused);
-		ImGui::PushAllowKeyboardFocus(true);
-	}
-
-	if (mHandleMouseInputs)
-		HandleMouseInputs();
-
+	HandleKeyboardInputs(aParentIsFocused);
+	HandleMouseInputs();
 	ColorizeInternal();
 	Render(aParentIsFocused);
 
-	if (mHandleKeyboardInputs)
-		ImGui::PopAllowKeyboardFocus();
-
-	if (!mIgnoreImGuiChild)
-		ImGui::EndChild();
+	ImGui::EndChild();
 
 	ImGui::PopStyleVar();
 	ImGui::PopStyleColor();
