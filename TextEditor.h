@@ -354,6 +354,7 @@ private:
 	struct EditorState
 	{
 		bool mPanning = false;
+		bool mDraggingSelection = false;
 		ImVec2 mLastMousePos;
 		int mCurrentCursor = 0;
 		int mLastAddedCursor = 0;
@@ -478,7 +479,6 @@ private:
 	int mColorRangeMin, mColorRangeMax;
 	bool mShowWhitespaces;
 	bool mShowShortTabGlyphs;
-	bool mDraggingSelection = false;
 
 	Palette mPaletteBase;
 	Palette mPalette;

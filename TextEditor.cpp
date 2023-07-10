@@ -951,9 +951,8 @@ void TextEditor::HandleMouseInputs()
 	/*
 	Pan with middle mouse button
 	*/
-	if (ImGui::IsMouseReleased(2))
-		mState.mPanning = false;
-	if (mState.mPanning)
+	mState.mPanning &= ImGui::IsMouseDown(2);
+	if (mState.mPanning && ImGui::IsMouseDragging(2))
 	{
 		ImVec2 scroll = { ImGui::GetScrollX(), ImGui::GetScrollY() };
 		ImVec2 currentMousePos = ImGui::GetMouseDragDelta(2);
@@ -967,9 +966,9 @@ void TextEditor::HandleMouseInputs()
 	}
 
 	// Mouse left button dragging (=> update selection)
-	if (ImGui::IsMouseDragging(0) && ImGui::IsMouseDown(0))
+	mState.mDraggingSelection &= ImGui::IsMouseDown(0);
+	if (mState.mDraggingSelection && ImGui::IsMouseDragging(0))
 	{
-		mDraggingSelection = true;
 		io.WantCaptureMouse = true;
 		Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite);
 		SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex(), false);
@@ -988,7 +987,7 @@ void TextEditor::HandleMouseInputs()
 			Pan with middle mouse button
 			*/
 
-			if (!mState.mPanning && ImGui::IsMouseDown(2))
+			if (ImGui::IsMouseClicked(2))
 			{
 				mState.mPanning = true;
 				mState.mLastMousePos = ImGui::GetMouseDragDelta(2);
@@ -1054,10 +1053,10 @@ void TextEditor::HandleMouseInputs()
 					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
 
 				mLastClick = (float)ImGui::GetTime();
+				mState.mDraggingSelection = true;
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
-				mDraggingSelection = false;
 				mState.SortCursorsFromTopToBottom();
 				MergeCursorsIfPossible();
 			}
@@ -1829,7 +1828,7 @@ void TextEditor::SetAutoIndentEnabled(bool aValue)
 
 void TextEditor::OnCursorPositionChanged()
 {
-	if (mDraggingSelection)
+	if (mState.mDraggingSelection)
 		return;
 
 	//std::cout << "Cursor position changed\n";
