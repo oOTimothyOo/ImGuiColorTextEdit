@@ -982,6 +982,8 @@ void TextEditor::HandleMouseInputs()
 			auto doubleClick = ImGui::IsMouseDoubleClicked(0);
 			auto t = ImGui::GetTime();
 			auto tripleClick = click && !doubleClick && (mLastClick != -1.0f && (t - mLastClick) < io.MouseDoubleClickTime);
+			if (click)
+				mState.mDraggingSelection = true;
 
 			/*
 			Pan with middle mouse button
@@ -1053,7 +1055,6 @@ void TextEditor::HandleMouseInputs()
 					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
 
 				mLastClick = (float)ImGui::GetTime();
-				mState.mDraggingSelection = true;
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
