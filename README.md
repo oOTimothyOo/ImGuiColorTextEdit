@@ -7,7 +7,7 @@ Features I've been working on:
 - multicursor (ctrl + click to add a new one)
 - ctrl + d for selecting next match
 - ctrl + \[ and ctrl + \] for indentation
-- more languag definitions for syntax highlighting
+- more language definitions for syntax highlighting
 - switched to boost regex which seems more stable
 - ctrl + backspace and ctrl + delete for word mode delete
 - ctrl + / for comment toggling
