@@ -1933,7 +1933,7 @@ void TextEditor::MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool
 			if (lindex > 0)
 			{
 				aCoords.mLine = lindex - 1;
-				aCoords.mColumn = GetLineMaxColumn(lindex);
+				aCoords.mColumn = GetLineMaxColumn(aCoords.mLine);
 			}
 		}
 		else
