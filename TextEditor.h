@@ -42,18 +42,6 @@ public:
 		Max
 	};
 
-	struct Breakpoint
-	{
-		int mLine;
-		bool mEnabled;
-		std::string mCondition;
-
-		Breakpoint()
-			: mLine(-1)
-			, mEnabled(false)
-		{}
-	};
-
 	// Represents a character coordinate from the user's point of view,
 	// i. e. consider an uniform grid (assuming fixed-width font) on the
 	// screen as it is rendered, and each cell has its own coordinate, starting from 0.
@@ -134,8 +122,6 @@ public:
 	typedef std::string String;
 	typedef std::unordered_map<std::string, Identifier> Identifiers;
 	typedef std::unordered_set<std::string> Keywords;
-	typedef std::map<int, std::string> ErrorMarkers;
-	typedef std::unordered_set<int> Breakpoints;
 	typedef std::array<ImU32, (unsigned)PaletteIndex::Max> Palette;
 	typedef uint8_t Char;
 
@@ -208,9 +194,6 @@ public:
 	const Palette& GetPalette() const { return mPaletteBase; }
 	void SetPalette(const Palette& aValue);
 
-	void SetErrorMarkers(const ErrorMarkers& aMarkers) { mErrorMarkers = aMarkers; }
-	void SetBreakpoints(const Breakpoints& aMarkers) { mBreakpoints = aMarkers; }
-
 	bool Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
 	void SetText(const std::string& aText);
 	std::string GetText() const;
@@ -275,9 +258,6 @@ public:
 	inline void SetShowWhitespaces(bool aValue) { mShowWhitespaces = aValue; }
 	inline bool IsShowingWhitespaces() const { return mShowWhitespaces; }
 
-	inline void SetShowShortTabGlyphs(bool aValue) { mShowShortTabGlyphs = aValue; }
-	inline bool IsShowingShortTabGlyphs() const { return mShowShortTabGlyphs; }
-
 	inline ImVec4 U32ColorToVec4(ImU32 in) {
 		float s = 1.0f / 255.0f;
 		return ImVec4(
@@ -297,8 +277,8 @@ public:
 	void MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode = false, int aLineCount = 1) const;
 	void MoveUp(int aAmount = 1, bool aSelect = false);
 	void MoveDown(int aAmount = 1, bool aSelect = false);
-	void MoveLeft(int aAmount = 1, bool aSelect = false, bool aWordMode = false);
-	void MoveRight(int aAmount = 1, bool aSelect = false, bool aWordMode = false);
+	void MoveLeft(bool aSelect = false, bool aWordMode = false);
+	void MoveRight(bool aSelect = false, bool aWordMode = false);
 	void MoveTop(bool aSelect = false);
 	void MoveBottom(bool aSelect = false);
 	void MoveHome(bool aSelect = false);
@@ -307,7 +287,8 @@ public:
 	void SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor = -1);
 	void SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor = -1);
 	void SelectAll();
-	bool HasSelection() const;
+	bool AnyCursorHasSelection() const;
+	bool AllCursorsHaveSelection() const;
 
 	void Copy();
 	void Cut();
@@ -478,7 +459,6 @@ private:
 	int  mLeftMargin;
 	int mColorRangeMin, mColorRangeMax;
 	bool mShowWhitespaces;
-	bool mShowShortTabGlyphs;
 
 	Palette mPaletteBase;
 	Palette mPalette;
@@ -486,8 +466,6 @@ private:
 	RegexList mRegexList;
 
 	bool mCheckComments;
-	Breakpoints mBreakpoints;
-	ErrorMarkers mErrorMarkers;
 	ImVec2 mCharAdvance;
 	std::string mLineBuffer;
 	uint64_t mStartTime;
