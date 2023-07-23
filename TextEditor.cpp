@@ -1392,11 +1392,14 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 
 			if (aIncrease)
 			{
-				Coordinates lineStart = { currentLine, 0 };
-				Coordinates insertionEnd = lineStart;
-				InsertTextAt(insertionEnd, "\t"); // sets insertion end
-				u.mOperations.push_back({ "\t", lineStart, insertionEnd, UndoOperationType::Add });
-				Colorize(lineStart.mLine, 1);
+				if (mLines[currentLine].size() > 0)
+				{
+					Coordinates lineStart = { currentLine, 0 };
+					Coordinates insertionEnd = lineStart;
+					InsertTextAt(insertionEnd, "\t"); // sets insertion end
+					u.mOperations.push_back({ "\t", lineStart, insertionEnd, UndoOperationType::Add });
+					Colorize(lineStart.mLine, 1);
+				}
 			}
 			else
 			{
