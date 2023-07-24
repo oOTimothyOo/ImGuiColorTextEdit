@@ -1942,6 +1942,8 @@ void TextEditor::Delete(bool aWordMode)
 	{
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
+			if (!mState.mCursors[c].HasSelection())
+				continue;
 			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].GetSelectionStart(), mState.mCursors[c].GetSelectionEnd(), UndoOperationType::Delete });
 			DeleteSelection(c);
 		}
