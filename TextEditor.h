@@ -113,6 +113,49 @@ public:
 		}
 	};
 
+	struct Cursor
+	{
+		Coordinates mInteractiveStart = { 0, 0 };
+		Coordinates mInteractiveEnd = { 0, 0 };
+		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
+	};
+
+	struct EditorState
+	{
+		bool mPanning = false;
+		bool mDraggingSelection = false;
+		ImVec2 mLastMousePos;
+		int mCurrentCursor = 0;
+		int mLastAddedCursor = 0;
+		bool mCursorPositionChanged = false;
+		std::vector<Cursor> mCursors = { {{0,0}} };
+		void AddCursor()
+		{
+			// vector is never resized to smaller size, mCurrentCursor points to last available cursor in vector
+			mCurrentCursor++;
+			mCursors.resize(mCurrentCursor + 1);
+			mLastAddedCursor = mCurrentCursor;
+		}
+		int GetLastAddedCursorIndex()
+		{
+			return mLastAddedCursor > mCurrentCursor ? 0 : mLastAddedCursor;
+		}
+		void SortCursorsFromTopToBottom()
+		{
+			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mInteractiveEnd;
+			std::sort(mCursors.begin(), mCursors.begin() + (mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
+				{
+					return a.GetSelectionStart() < b.GetSelectionStart();
+				});
+			// update last added cursor index to be valid after sort
+			for (int c = mCurrentCursor; c > -1; c--)
+				if (mCursors[c].mInteractiveEnd == lastAddedCursorPos)
+					mLastAddedCursor = c;
+		}
+	};
+
 	struct Identifier
 	{
 		Coordinates mLocation;
@@ -293,7 +336,7 @@ public:
 	void Copy();
 	void Cut();
 	void Paste();
-	void Delete(bool aWordMode = false);
+	void Delete(bool aWordMode = false, const EditorState* aEditorState = nullptr);
 
 	int GetUndoIndex() const;
 	bool CanUndo() const;
@@ -322,49 +365,6 @@ private:
 	}
 
 	typedef std::vector<std::pair<boost::regex, PaletteIndex>> RegexList;
-
-	struct Cursor
-	{
-		Coordinates mInteractiveStart = { 0, 0 };
-		Coordinates mInteractiveEnd = { 0, 0 };
-		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
-		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
-		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
-	};
-
-	struct EditorState
-	{
-		bool mPanning = false;
-		bool mDraggingSelection = false;
-		ImVec2 mLastMousePos;
-		int mCurrentCursor = 0;
-		int mLastAddedCursor = 0;
-		bool mCursorPositionChanged = false;
-		std::vector<Cursor> mCursors = { {{0,0}} };
-		void AddCursor()
-		{
-			// vector is never resized to smaller size, mCurrentCursor points to last available cursor in vector
-			mCurrentCursor++;
-			mCursors.resize(mCurrentCursor + 1);
-			mLastAddedCursor = mCurrentCursor;
-		}
-		int GetLastAddedCursorIndex()
-		{
-			return mLastAddedCursor > mCurrentCursor ? 0 : mLastAddedCursor;
-		}
-		void SortCursorsFromTopToBottom()
-		{
-			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mInteractiveEnd;
-			std::sort(mCursors.begin(), mCursors.begin() + (mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
-				{
-					return a.GetSelectionStart() < b.GetSelectionStart();
-				});
-			// update last added cursor index to be valid after sort
-			for (int c = mCurrentCursor; c > -1; c--)
-				if (mCursors[c].mInteractiveEnd == lastAddedCursorPos)
-					mLastAddedCursor = c;
-		}
-	};
 
 	void MergeCursorsIfPossible();
 

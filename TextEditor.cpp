@@ -1940,18 +1940,17 @@ void TextEditor::MoveEnd(bool aSelect)
 	}
 }
 
-void TextEditor::Delete(bool aWordMode)
+void TextEditor::Delete(bool aWordMode, const EditorState* aEditorState)
 {
 	assert(!mReadOnly);
 
 	if (mLines.empty())
 		return;
 
-	UndoRecord u;
-	u.mBefore = mState;
-
 	if (AnyCursorHasSelection())
 	{
+		UndoRecord u;
+		u.mBefore = aEditorState == nullptr ? mState : *aEditorState;
 		for (int c = mState.mCurrentCursor; c > -1; c--)
 		{
 			if (!mState.mCursors[c].HasSelection())
@@ -1959,71 +1958,23 @@ void TextEditor::Delete(bool aWordMode)
 			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].GetSelectionStart(), mState.mCursors[c].GetSelectionEnd(), UndoOperationType::Delete });
 			DeleteSelection(c);
 		}
+		u.mAfter = mState;
+		AddUndo(u);
 	}
 	else
 	{
-		std::vector<Coordinates> positions;
-		for (int c = 0; c <= mState.mCurrentCursor; c++)
+		EditorState stateBeforeDeleting = mState;
+		MoveRight(true, aWordMode);
+		if (!AllCursorsHaveSelection()) // can't do delete if any cursor at end of last line
 		{
-			auto pos = GetActualCursorCoordinates(c);
-			positions.push_back(pos);
-			SetCursorPosition(pos, c);
-			auto& line = mLines[pos.mLine];
-
-			if (pos.mColumn == GetLineMaxColumn(pos.mLine))
-			{
-				if (pos.mLine == (int)mLines.size() - 1)
-					continue;
-
-				Coordinates startCoords = GetActualCursorCoordinates(c);
-				Coordinates endCoords = startCoords;
-				MoveCoords(endCoords, MoveDirection::Right);
-				u.mOperations.push_back({ "\n", startCoords, endCoords, UndoOperationType::Delete });
-
-				auto& nextLine = mLines[pos.mLine + 1];
-				AddGlyphsToLine(pos.mLine, line.size(), nextLine.begin(), nextLine.end());
-				for (int otherCursor = c + 1;
-					otherCursor <= mState.mCurrentCursor && mState.mCursors[otherCursor].mInteractiveEnd.mLine == pos.mLine + 1;
-					otherCursor++) // move up cursors in next line
-				{
-					int otherCursorCharIndex = GetCharacterIndexR(mState.mCursors[otherCursor].mInteractiveEnd);
-					int otherCursorNewCharIndex = GetCharacterIndexR(pos) + otherCursorCharIndex;
-					auto targetCoords = Coordinates(pos.mLine, GetCharacterColumn(pos.mLine, otherCursorNewCharIndex));
-					SetCursorPosition(targetCoords, otherCursor);
-				}
-				RemoveLine(pos.mLine + 1);
-			}
-			else
-			{
-				if (aWordMode)
-				{
-					Coordinates end = FindWordEnd(mState.mCursors[c].mInteractiveEnd);
-					u.mOperations.push_back({ GetText(mState.mCursors[c].mInteractiveEnd, end),  mState.mCursors[c].mInteractiveEnd , end, UndoOperationType::Delete });
-					DeleteRange(mState.mCursors[c].mInteractiveEnd, end);
-					int charactersDeleted = end.mColumn - mState.mCursors[c].mInteractiveEnd.mColumn;
-				}
-				else
-				{
-					auto cindex = GetCharacterIndexR(pos);
-
-					Coordinates start = GetActualCursorCoordinates(c);
-					Coordinates end = start;
-					end.mColumn++;
-					u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Delete });
-
-					auto d = UTF8CharLength(line[cindex].mChar);
-					while (d-- > 0 && cindex < (int)line.size())
-						RemoveGlyphsFromLine(pos.mLine, cindex, cindex + 1);
-				}
-			}
+			if (AnyCursorHasSelection())
+				MoveLeft();
+			return;
 		}
 
-		for (const auto& pos : positions)
-			Colorize(pos.mLine, 1);
+		OnCursorPositionChanged(); // might combine cursors
+		Delete(aWordMode, &stateBeforeDeleting);
 	}
-
-	u.mAfter = mState;
-	AddUndo(u);
 }
 
 void TextEditor::Backspace(bool aWordMode)
@@ -2037,15 +1988,17 @@ void TextEditor::Backspace(bool aWordMode)
 		Delete(aWordMode);
 	else
 	{
+		EditorState stateBeforeDeleting = mState;
 		MoveLeft(true, aWordMode);
-		if (!AllCursorsHaveSelection() && AnyCursorHasSelection()) // can't do backspace if any cursor at {0,0}
+		if (!AllCursorsHaveSelection()) // can't do backspace if any cursor at {0,0}
 		{
-			MoveRight();
+			if (AnyCursorHasSelection())
+				MoveRight();
 			return;
 		}
 			
 		OnCursorPositionChanged(); // might combine cursors
-		Delete(aWordMode);
+		Delete(aWordMode, &stateBeforeDeleting);
 	}
 }
 
