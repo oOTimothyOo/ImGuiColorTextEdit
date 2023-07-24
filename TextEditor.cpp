@@ -698,7 +698,6 @@ void TextEditor::OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int a
 void TextEditor::RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar)
 {
 	int column = GetCharacterColumn(aLine, aStartChar);
-	int deltaX = GetCharacterColumn(aLine, aEndChar) - column;
 	auto& line = mLines[aLine];
 	OnLineChanged(true, aLine, column, aEndChar - aStartChar, true);
 	line.erase(line.begin() + aStartChar, aEndChar == -1 ? line.end() : line.begin() + aEndChar);
