@@ -204,8 +204,6 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
 	assert(aEnd >= aStart);
 	assert(!mReadOnly);
 
-	//printf("D(%d.%d)-(%d.%d)\n", aStart.mLine, aStart.mColumn, aEnd.mLine, aEnd.mColumn);
-
 	if (aEnd == aStart)
 		return;
 
@@ -228,10 +226,25 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
 		auto& lastLine = mLines[aEnd.mLine];
 
 		if (aStart.mLine < aEnd.mLine)
+		{
 			AddGlyphsToLine(aStart.mLine, firstLine.size(), lastLine.begin(), lastLine.end());
-
-		if (aStart.mLine < aEnd.mLine)
+			for (int c = 0; c <= mState.mCurrentCursor; c++) // move up cursors in line that is being moved up
+			{
+				if (mState.mCursors[c].mInteractiveEnd.mLine > aEnd.mLine)
+					break;
+				else if (mState.mCursors[c].mInteractiveEnd.mLine != aEnd.mLine)
+					continue;
+				int otherCursorEndCharIndex = GetCharacterIndexR(mState.mCursors[c].mInteractiveEnd);
+				int otherCursorStartCharIndex = GetCharacterIndexR(mState.mCursors[c].mInteractiveStart);
+				int otherCursorNewEndCharIndex = GetCharacterIndexR(aStart) + otherCursorEndCharIndex;
+				int otherCursorNewStartCharIndex = GetCharacterIndexR(aStart) + otherCursorStartCharIndex;
+				auto targetEndCoords = Coordinates(aStart.mLine, GetCharacterColumn(aStart.mLine, otherCursorNewEndCharIndex));
+				auto targetStartCoords = Coordinates(aStart.mLine, GetCharacterColumn(aStart.mLine, otherCursorNewStartCharIndex));
+				SetCursorPosition(targetStartCoords, c, true);
+				SetCursorPosition(targetEndCoords, c, false);
+			}
 			RemoveLines(aStart.mLine + 1, aEnd.mLine + 1);
+		}
 	}
 }
 
