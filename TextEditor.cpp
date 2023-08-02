@@ -1807,9 +1807,14 @@ void TextEditor::MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool
 		{
 			int delta = UTF8CharLength(line[cindex].mChar);
 			cindex = std::min(cindex + delta, (int)line.size());
-			aCoords.mColumn = GetCharacterColumn(lindex, cindex);
+			int oneStepRightColumn = GetCharacterColumn(lindex, cindex);
 			if (aWordMode)
+			{
 				aCoords = FindWordEnd(aCoords);
+				aCoords.mColumn = std::max(aCoords.mColumn, oneStepRightColumn);
+			}
+			else
+				aCoords.mColumn = oneStepRightColumn;
 		}
 		break;
 	case MoveDirection::Left:
