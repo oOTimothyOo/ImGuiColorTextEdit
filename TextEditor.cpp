@@ -636,14 +636,8 @@ void TextEditor::RemoveCurrentLines()
 	UndoRecord u;
 	u.mBefore = mState;
 
-	if (AnyCursorHasSelection())
-	{
-		for (int c = mState.mCurrentCursor; c > -1; c--)
-		{
-			u.mOperations.push_back({ GetSelectedText(c), mState.mCursors[c].GetSelectionStart(), mState.mCursors[c].GetSelectionEnd(), UndoOperationType::Delete });
-			DeleteSelection(c);
-		}
-	}
+	MoveHome();
+	OnCursorPositionChanged(); // might combine cursors
 
 	for (int c = mState.mCurrentCursor; c > -1; c--)
 	{
