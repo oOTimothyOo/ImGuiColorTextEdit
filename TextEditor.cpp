@@ -44,7 +44,7 @@ TextEditor::TextEditor()
 	, mStartTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 	, mLastClick(-1.0f)
 {
-	SetPalette(GetMarianaPalette());
+	SetPalette(GetDarkPalette());
 	mLines.push_back(Line());
 }
 
