@@ -2225,25 +2225,25 @@ void TextEditor::AddCursorForNextOccurrence()
 const TextEditor::Palette& TextEditor::GetDarkPalette()
 {
 	const static Palette p = { {
-			0xb0b0b0ff,	// Default
-			0x569cd6ff,	// Keyword
-			0x00ff00ff,	// Number
-			0xe07070ff,	// String
+			0xdcdfe4ff,	// Default
+			0xe06c75ff,	// Keyword
+			0xe5c07bff,	// Number
+			0x98c379ff,	// String
 			0xe0a070ff, // Char literal
-			0xffffffff, // Punctuation
+			0x6a7384ff, // Punctuation
 			0x808040ff,	// Preprocessor
-			0xaaaaaaff, // Identifier
-			0x4dc69bff, // Known identifier
-			0xa040c0ff, // Preproc identifier
-			0x206020ff, // Comment (single line)
-			0x206040ff, // Comment (multi line)
-			0x101010ff, // Background
+			0xdcdfe4ff, // Identifier
+			0x61afefff, // Known identifier
+			0xc678ddff, // Preproc identifier
+			0x3696a2ff, // Comment (single line)
+			0x3696a2ff, // Comment (multi line)
+			0x282c34ff, // Background
 			0xe0e0e0ff, // Cursor
 			0x2060a080, // Selection
 			0xff200080, // ErrorMarker
-			0x90909090, // ControlCharacter
+			0xffffff15, // ControlCharacter
 			0x0080f040, // Breakpoint
-			0x007070ff, // Line number
+			0x7a8394ff, // Line number
 			0x00000040, // Current line fill
 			0x80808040, // Current line fill (inactive)
 			0xa0a0a040, // Current line edge
@@ -2268,7 +2268,7 @@ const TextEditor::Palette& TextEditor::GetMarianaPalette()
 			0xa6acb9ff, // Comment (multi line)
 			0x303841ff, // Background
 			0xe0e0e0ff, // Cursor
-			0x4e5a6580, // Selection
+			0x6e7a8580, // Selection
 			0xec5f6680, // ErrorMarker
 			0xffffff30, // ControlCharacter
 			0x0080f040, // Breakpoint
