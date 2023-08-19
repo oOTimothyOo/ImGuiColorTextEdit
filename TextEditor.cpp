@@ -36,6 +36,7 @@ TextEditor::TextEditor()
 	, mScrollToTop(false)
 	, mColorizerEnabled(true)
 	, mTextStart(20.0f)
+	, mLongestLineLength(20.0f)
 	, mLeftMargin(10)
 	, mColorRangeMin(0)
 	, mColorRangeMax(0)
@@ -1060,7 +1061,6 @@ void TextEditor::Render(bool aParentIsFocused)
 
 	auto contentSize = ImGui::GetWindowContentRegionMax();
 	auto drawList = ImGui::GetWindowDrawList();
-	float longest(mTextStart);
 
 	if (mScrollToTop)
 	{
@@ -1091,7 +1091,7 @@ void TextEditor::Render(bool aParentIsFocused)
 			ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
 
 			auto& line = mLines[lineNo];
-			longest = std::max(mTextStart + TextDistanceToLineStart(Coordinates(lineNo, GetLineMaxColumn(lineNo))), longest);
+			mLongestLineLength = std::max(mTextStart + TextDistanceToLineStart(Coordinates(lineNo, GetLineMaxColumn(lineNo))), mLongestLineLength);
 			auto columnNo = 0;
 			Coordinates lineStartCoord(lineNo, 0);
 			Coordinates lineEndCoord(lineNo, GetLineMaxColumn(lineNo));
@@ -1244,7 +1244,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 
 	ImGui::SetCursorPos(ImVec2(0, 0));
-	ImGui::Dummy(ImVec2((longest + 2), mLines.size() * mCharAdvance.y));
+	ImGui::Dummy(ImVec2((mLongestLineLength + 15), mLines.size() * mCharAdvance.y));
 
 	if (mScrollToCursor)
 	{

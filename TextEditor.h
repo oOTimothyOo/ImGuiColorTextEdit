@@ -459,6 +459,7 @@ private:
 	int  mLeftMargin;
 	int mColorRangeMin, mColorRangeMax;
 	bool mShowWhitespaces;
+	float mLongestLineLength;
 
 	Palette mPaletteBase;
 	Palette mPalette;
