@@ -1256,52 +1256,71 @@ void TextEditor::Render(bool aParentIsFocused)
 bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd)
 {
 	assert(aTextSize > 0);
-	for (int i = 0; i < mLines.size(); i++)
+	bool fmatches = false;
+	int fline, ifline;
+	int findex, ifindex;
+
+	ifline = fline = aFrom.mLine;
+	ifindex = findex = GetCharacterIndexR(aFrom);
+
+	while (true)
 	{
-		int currentLine = (aFrom.mLine + i) % mLines.size();
-		int lineStartIndex = i == 0 ? GetCharacterIndexR(aFrom) : 0;
-		int aTextIndex = 0;
-		int j = lineStartIndex;
-		for (; j < mLines[currentLine].size(); j++)
+		bool matches;
+		{ // match function
+			int lineOffset = 0;
+			int currentCharIndex = findex;
+			int i = 0;
+			for (; i < aTextSize; i++)
+			{
+				if (currentCharIndex == mLines[fline + lineOffset].size())
+				{
+					if (aText[i] == '\n' && fline + lineOffset + 1 < mLines.size())
+					{
+						currentCharIndex = 0;
+						lineOffset++;
+					}
+					else
+						break;
+				}
+				else
+				{
+					if (mLines[fline + lineOffset][currentCharIndex].mChar != aText[i])
+						break;
+					else
+						currentCharIndex++;
+				}
+			}
+			matches = i == aTextSize;
+			if (matches)
+			{
+				outStart = { fline, GetCharacterColumn(fline, findex) };
+				outEnd = { fline + lineOffset, GetCharacterColumn(fline + lineOffset, currentCharIndex) };
+				return true;
+			}
+		}
+
+		// move forward
+		if (findex == mLines[fline].size()) // need to consider line breaks
 		{
-			if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
-				break;
-			if (aText[aTextIndex] == mLines[currentLine][j].mChar)
-				aTextIndex++;
+			if (fline == mLines.size() - 1)
+			{
+				fline = 0;
+				findex = 0;
+			}
 			else
-				aTextIndex = 0;
+			{
+				fline++;
+				findex = 0;
+			}
 		}
-		if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
-		{
-			if (aText[aTextIndex] == '\0')
-				aTextSize = aTextIndex;
-			outStart = { currentLine, GetCharacterColumn(currentLine, j - aTextSize) };
-			outEnd = { currentLine, GetCharacterColumn(currentLine, j) };
-			return true;
-		}
+		else
+			findex++;
+
+		// detect complete scan
+		if (findex == ifindex && fline == ifline)
+			return false;
 	}
-	// in line where we started again but from char index 0 to aFrom.mColumn
-	{
-		int aTextIndex = 0;
-		int j = 0;
-		for (; j < GetCharacterIndexR(aFrom); j++)
-		{
-			if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
-				break;
-			if (aText[aTextIndex] == mLines[aFrom.mLine][j].mChar)
-				aTextIndex++;
-			else
-				aTextIndex = 0;
-		}
-		if (aTextIndex == aTextSize || aText[aTextIndex] == '\0')
-		{
-			if (aText[aTextIndex] == '\0')
-				aTextSize = aTextIndex;
-			outStart = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j - aTextSize) };
-			outEnd = { aFrom.mLine, GetCharacterColumn(aFrom.mLine, j) };
-			return true;
-		}
-	}
+
 	return false;
 }
 
