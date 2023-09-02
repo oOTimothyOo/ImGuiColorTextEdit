@@ -1772,7 +1772,12 @@ void TextEditor::SetCursorPosition(int aLine, int aCharIndex, int aCursor, bool 
 
 void TextEditor::SetTabSize(int aValue)
 {
-	mTabSize = std::max(0, std::min(32, aValue));
+	mTabSize = std::max(1, std::min(8, aValue));
+}
+
+void TextEditor::SetLineSpacing(float aValue)
+{
+	mLineSpacing = std::max(1.0f, std::min(2.0f, aValue));
 }
 
 void TextEditor::InsertText(const std::string& aValue, int aCursor)
