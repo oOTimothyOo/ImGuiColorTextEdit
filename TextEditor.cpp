@@ -1244,7 +1244,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 
 	ImGui::SetCursorPos(ImVec2(0, 0));
-	ImGui::Dummy(ImVec2((mLongestLineLength + 15), mLines.size() * mCharAdvance.y));
+	ImGui::Dummy(ImVec2((mLongestLineLength + 15), (mLines.size() + GetPageSize()) * mCharAdvance.y));
 
 	if (mScrollToCursor)
 	{
