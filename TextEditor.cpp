@@ -2046,6 +2046,19 @@ void TextEditor::SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor)
 {
 	if (aCursor == -1)
 		aCursor = mState.mCurrentCursor;
+
+	Coordinates minCoords = Coordinates(0, 0);
+	int maxLine = (int)mLines.size() - 1;
+	Coordinates maxCoords = Coordinates(maxLine, GetLineMaxColumn(maxLine));
+	if (aStart < minCoords)
+		aStart = minCoords;
+	else if (aStart > maxCoords)
+		aStart = maxCoords;
+	if (aEnd < minCoords)
+		aEnd = minCoords;
+	else if (aEnd > maxCoords)
+		aEnd = maxCoords;
+
 	mState.mCursors[aCursor].mInteractiveStart = aStart;
 	SetCursorPosition(aEnd, aCursor, false);
 }
