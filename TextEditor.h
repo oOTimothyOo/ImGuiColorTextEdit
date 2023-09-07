@@ -124,6 +124,16 @@ public:
 
 	struct EditorState
 	{
+		int mFirstVisibleLine = 0;
+		int mLastVisibleLine = 0;
+		int mVisibleLineCount = 0;
+		int mFirstVisibleColumn = 0;
+		int mLastVisibleColumn = 0;
+		int mVisibleColumnCount = 0;
+		float mContentWidth = 0.0f;
+		float mContentHeight = 0.0f;
+		float mScrollX = 0.0f;
+		float mScrollY = 0.0f;
 		bool mPanning = false;
 		bool mDraggingSelection = false;
 		ImVec2 mLastMousePos;
@@ -398,7 +408,6 @@ private:
 	void ColorizeInternal();
 	float TextDistanceToLineStart(const Coordinates& aFrom) const;
 	void EnsureCursorVisible(int aCursor = -1);
-	int GetPageSize() const;
 	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
 	Coordinates GetActualCursorCoordinates(int aCursor = -1) const;
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
@@ -453,8 +462,7 @@ private:
 	bool mOverwrite;
 	bool mReadOnly;
 	bool mAutoIndent;
-	bool mWithinRender;
-	bool mScrollToCursor;
+	int mEnsureCursorVisible;
 	bool mScrollToTop;
 	bool mColorizerEnabled;
 	float mTextStart;                   // position (in pixels) where a code line starts relative to the left of the TextEditor.
