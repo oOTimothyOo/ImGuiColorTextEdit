@@ -2545,7 +2545,10 @@ void TextEditor::ColorizeRange(int aFromLine, int aToLine)
 
 				for (const auto& p : mRegexList)
 				{
-					if (boost::regex_search(first, last, results, p.first, boost::regex_constants::match_continuous))
+					bool regexSearchResult = false;
+					try { regexSearchResult = boost::regex_search(first, last, results, p.first, boost::regex_constants::match_continuous); }
+					catch (...) {}
+					if (regexSearchResult)
 					{
 						hasTokenizeResult = true;
 
