@@ -2746,6 +2746,7 @@ void TextEditor::ColorizeInternal()
 	}
 }
 
+// can't multiply mCharAdvance with aFrom.mColumn because the line might not have text where the column is
 float TextEditor::TextDistanceToLineStart(const Coordinates& aFrom) const
 {
 	auto& line = mLines[aFrom.mLine];
