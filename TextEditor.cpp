@@ -1096,7 +1096,7 @@ void TextEditor::Render(bool aParentIsFocused)
 
 			auto& line = mLines[lineNo];
 			mLongestLineLength = std::max(mTextStart + TextDistanceToLineStart(Coordinates(lineNo, GetLineMaxColumn(lineNo))), mLongestLineLength);
-			auto columnNo = 0;
+
 			Coordinates lineStartCoord(lineNo, 0);
 			Coordinates lineEndCoord(lineNo, GetLineMaxColumn(lineNo));
 
@@ -1233,7 +1233,6 @@ void TextEditor::Render(bool aParentIsFocused)
 					while (l-- > 0)
 						mLineBuffer.push_back(line[i++].mChar);
 				}
-				++columnNo;
 			}
 
 			if (!mLineBuffer.empty())
