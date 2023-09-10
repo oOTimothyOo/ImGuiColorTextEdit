@@ -9,6 +9,17 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h" // for imGui::GetCurrentWindow()
 
+const std::unordered_map<char, char> TextEditor::OPEN_TO_CLOSE_CHAR = {
+	{'{', '}'},
+	{'(' , ')'},
+	{'[' , ']'}
+};
+const std::unordered_map<char, char> TextEditor::CLOSE_TO_OPEN_CHAR = {
+	{'}', '{'},
+	{')' , '('},
+	{']' , '['}
+};
+
 // TODO
 // - multiline comments vs single-line: latter is blocking start of a ML
 
@@ -1150,8 +1161,7 @@ void TextEditor::Render(bool aParentIsFocused)
 
 						if (mOverwrite && cindex < (int)line.size())
 						{
-							auto c = line[cindex].mChar;
-							if (c == '\t')
+							if (line[cindex].mChar == '\t')
 							{
 								auto x = (1.0f + std::floor((1.0f + cx) / (float(mTabSize) * spaceSize))) * (float(mTabSize) * spaceSize);
 								width = x - cx;
@@ -1162,6 +1172,25 @@ void TextEditor::Render(bool aParentIsFocused)
 						ImVec2 cstart(textScreenPos.x + cx, lineStartScreenPos.y);
 						ImVec2 cend(textScreenPos.x + cx + width, lineStartScreenPos.y + mCharAdvance.y);
 						drawList->AddRectFilled(cstart, cend, mPalette[(int)PaletteIndex::Cursor]);
+
+						if (cindex < (int)line.size())
+						{
+							Coordinates matchingBracket;
+							if (FindMatchingBracket(lineNo, cindex, matchingBracket))
+							{
+								ImVec2 topLeft = { cstart.x, cend.y + 1.0f };
+								ImVec2 bottomRight = { cstart.x + mCharAdvance.x, cend.y + 2.0f };
+
+								drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
+								ImVec2 disp = {
+									(cursorCoords.mColumn - matchingBracket.mColumn) * mCharAdvance.x,
+									(cursorCoords.mLine - matchingBracket.mLine) * mCharAdvance.y
+								};
+								topLeft = { topLeft.x - disp.x, topLeft.y - disp.y };
+								bottomRight = { bottomRight.x - disp.x, bottomRight.y - disp.y };
+								drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
+							}
+						}
 					}
 				}
 			}
@@ -1345,6 +1374,84 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 			return false;
 	}
 
+	return false;
+}
+
+bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out)
+{
+	// assuming bracket chars cannot be part of utf8 sequence
+	if (CLOSE_TO_OPEN_CHAR.find(mLines[aLine][aCharIndex].mChar) != CLOSE_TO_OPEN_CHAR.end())
+	{
+		char closeChar = mLines[aLine][aCharIndex].mChar;
+		char openChar = CLOSE_TO_OPEN_CHAR.at(closeChar);
+		int currentLine = aLine;
+		int currentCharIndex = aCharIndex;
+		int counter = 0;
+		while (true)
+		{
+			if (currentCharIndex < mLines[currentLine].size())
+			{
+				char currentChar = mLines[currentLine][currentCharIndex].mChar;
+				if (currentChar == openChar)
+				{
+					counter--;
+					if (counter == 0)
+					{
+						out = { currentLine, GetCharacterColumn(currentLine, currentCharIndex) };
+						return true;
+					}
+				}
+				else if (currentChar == closeChar)
+					counter++;
+			}
+
+			if (currentCharIndex == 0)
+			{
+				if (currentLine == 0)
+					break;
+				currentLine--;
+				currentCharIndex = mLines[currentLine].size() - 1;
+			}
+			else
+				currentCharIndex--;
+		}
+	}
+	else if (OPEN_TO_CLOSE_CHAR.find(mLines[aLine][aCharIndex].mChar) != OPEN_TO_CLOSE_CHAR.end())
+	{
+		char openChar = mLines[aLine][aCharIndex].mChar;
+		char closeChar = OPEN_TO_CLOSE_CHAR.at(openChar);
+		int currentLine = aLine;
+		int currentCharIndex = aCharIndex;
+		int counter = 0;
+		while (true)
+		{
+			if (currentCharIndex < mLines[currentLine].size())
+			{
+				char currentChar = mLines[currentLine][currentCharIndex].mChar;
+				if (currentChar == closeChar)
+				{
+					counter--;
+					if (counter == 0)
+					{
+						out = { currentLine, GetCharacterColumn(currentLine, currentCharIndex) };
+						return true;
+					}
+				}
+				else if (currentChar == openChar)
+					counter++;
+			}
+
+			if (currentCharIndex == mLines[currentLine].size())
+			{
+				if (currentLine == mLines.size() - 1)
+					break;
+				currentLine++;
+				currentCharIndex = 0;
+			}
+			else
+				currentCharIndex++;
+		}
+	}
 	return false;
 }
 

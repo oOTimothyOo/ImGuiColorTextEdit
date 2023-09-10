@@ -14,6 +14,8 @@
 
 class IMGUI_API TextEditor
 {
+	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
+	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
 public:
 	enum class PaletteIndex
 	{
@@ -452,6 +454,7 @@ private:
 	void Render(bool aParentIsFocused = false);
 
 	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
+	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
 
 	float mLineSpacing;
 	Lines mLines;
