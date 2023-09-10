@@ -359,7 +359,8 @@ public:
 	void ClearExtraCursors();
 	void ClearSelections();
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
-	void AddCursorForNextOccurrence();
+	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
+	void SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
 
 	static const Palette& GetMarianaPalette();
 	static const Palette& GetDarkPalette();

@@ -2267,7 +2267,7 @@ void TextEditor::SelectNextOccurrenceOf(const char* aText, int aTextSize, int aC
 	EnsureCursorVisible(aCursor);
 }
 
-void TextEditor::AddCursorForNextOccurrence()
+void TextEditor::AddCursorForNextOccurrence(bool aCaseSensitive)
 {
 	const Cursor& currentCursor = mState.mCursors[mState.GetLastAddedCursorIndex()];
 	if (currentCursor.GetSelectionStart() == currentCursor.GetSelectionEnd())
@@ -2275,7 +2275,7 @@ void TextEditor::AddCursorForNextOccurrence()
 
 	std::string selectionText = GetText(currentCursor.GetSelectionStart(), currentCursor.GetSelectionEnd());
 	Coordinates nextStart, nextEnd;
-	if (!FindNextOccurrence(selectionText.c_str(), selectionText.length(), currentCursor.GetSelectionEnd(), nextStart, nextEnd))
+	if (!FindNextOccurrence(selectionText.c_str(), selectionText.length(), currentCursor.GetSelectionEnd(), nextStart, nextEnd, aCaseSensitive))
 		return;
 
 	mState.AddCursor();
@@ -2283,6 +2283,21 @@ void TextEditor::AddCursorForNextOccurrence()
 	mState.SortCursorsFromTopToBottom();
 	MergeCursorsIfPossible();
 	EnsureCursorVisible();
+}
+
+void TextEditor::SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive)
+{
+	ClearSelections();
+	ClearExtraCursors();
+	SelectNextOccurrenceOf(aText, aTextSize, -1, aCaseSensitive);
+	Coordinates startPos = mState.mCursors[mState.GetLastAddedCursorIndex()].mInteractiveEnd;
+	while (true)
+	{
+		AddCursorForNextOccurrence(aCaseSensitive);
+		Coordinates lastAddedPos = mState.mCursors[mState.GetLastAddedCursorIndex()].mInteractiveEnd;
+		if (lastAddedPos == startPos)
+			break;
+	}
 }
 
 const TextEditor::Palette& TextEditor::GetDarkPalette()
