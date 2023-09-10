@@ -358,7 +358,7 @@ public:
 
 	void ClearExtraCursors();
 	void ClearSelections();
-	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1);
+	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
 	void AddCursorForNextOccurrence();
 
 	static const Palette& GetMarianaPalette();
@@ -450,7 +450,7 @@ private:
 	void UpdatePalette();
 	void Render(bool aParentIsFocused = false);
 
-	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd);
+	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
 
 	float mLineSpacing;
 	Lines mLines;

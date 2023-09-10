@@ -1278,7 +1278,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 }
 
-bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd)
+bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive)
 {
 	assert(aTextSize > 0);
 	bool fmatches = false;
@@ -1309,7 +1309,11 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 				}
 				else
 				{
-					if (mLines[fline + lineOffset][currentCharIndex].mChar != aText[i])
+					char toCompareA = mLines[fline + lineOffset][currentCharIndex].mChar;
+					char toCompareB = aText[i];
+					toCompareA = (!aCaseSensitive && toCompareA >= 'A' && toCompareA <= 'Z') ? toCompareA - 'A' + 'a' : toCompareA;
+					toCompareB = (!aCaseSensitive && toCompareB >= 'A' && toCompareB <= 'Z') ? toCompareB - 'A' + 'a' : toCompareB;
+					if (toCompareA != toCompareB)
 						break;
 					else
 						currentCharIndex++;
@@ -2253,12 +2257,12 @@ void TextEditor::ClearSelections()
 		mState.mCursors[c].GetSelectionEnd();
 }
 
-void TextEditor::SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor)
+void TextEditor::SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor, bool aCaseSensitive)
 {
 	if (aCursor == -1)
 		aCursor = mState.mCurrentCursor;
 	Coordinates nextStart, nextEnd;
-	FindNextOccurrence(aText, aTextSize, mState.mCursors[aCursor].mInteractiveEnd, nextStart, nextEnd);
+	FindNextOccurrence(aText, aTextSize, mState.mCursors[aCursor].mInteractiveEnd, nextStart, nextEnd, aCaseSensitive);
 	SetSelection(nextStart, nextEnd, aCursor);
 	EnsureCursorVisible(aCursor);
 }
