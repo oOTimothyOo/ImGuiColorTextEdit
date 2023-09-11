@@ -20,6 +20,8 @@ const std::unordered_map<char, char> TextEditor::CLOSE_TO_OPEN_CHAR = {
 	{']' , '['}
 };
 
+TextEditor::PaletteId TextEditor::defaultPalette = TextEditor::PaletteId::Dark;
+
 // TODO
 // - multiline comments vs single-line: latter is blocking start of a ML
 
@@ -55,7 +57,7 @@ TextEditor::TextEditor()
 	, mStartTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 	, mLastClick(-1.0f)
 {
-	SetPalette(GetDarkPalette());
+	SetPalette(defaultPalette);
 	mLines.push_back(Line());
 }
 
@@ -77,11 +79,6 @@ void TextEditor::SetLanguageDefinition(const LanguageDefinition& aLanguageDef)
 const char* TextEditor::GetLanguageDefinitionName() const
 {
 	return mLanguageDefinition != nullptr ? mLanguageDefinition->mName.c_str() : "unknown";
-}
-
-void TextEditor::SetPalette(const Palette& aValue)
-{
-	mPaletteBase = aValue;
 }
 
 std::string TextEditor::GetText(const Coordinates& aStart, const Coordinates& aEnd) const
@@ -1050,17 +1047,6 @@ void TextEditor::HandleMouseInputs()
 	}
 }
 
-void TextEditor::UpdatePalette()
-{
-	/* Update palette with the current alpha from style */
-	for (int i = 0; i < (int)PaletteIndex::Max; ++i)
-	{
-		auto color = U32ColorToVec4(mPaletteBase[i]);
-		color.w *= ImGui::GetStyle().Alpha;
-		mPalette[i] = ImGui::ColorConvertFloat4ToU32(color);
-	}
-}
-
 void TextEditor::Render(bool aParentIsFocused)
 {
 	/* Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)*/
@@ -1461,8 +1447,6 @@ bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 		OnCursorPositionChanged();
 	mState.mCursorPositionChanged = false;
 
-	UpdatePalette();
-
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(mPalette[(int)PaletteIndex::Background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 
@@ -1861,6 +1845,34 @@ void TextEditor::SetReadOnlyEnabled(bool aValue)
 void TextEditor::SetAutoIndentEnabled(bool aValue)
 {
 	mAutoIndent = aValue;
+}
+
+void TextEditor::SetPalette(PaletteId aValue)
+{
+	mPaletteId = aValue;
+	const Palette* palletteBase;
+	switch (mPaletteId)
+	{
+	case PaletteId::Dark:
+		palletteBase = &(GetDarkPalette());
+		break;
+	case PaletteId::Light:
+		palletteBase = &(GetLightPalette());
+		break;
+	case PaletteId::Mariana:
+		palletteBase = &(GetMarianaPalette());
+		break;
+	case PaletteId::RetroBlue:
+		palletteBase = &(GetRetroBluePalette());
+		break;
+	}
+	/* Update palette with the current alpha from style */
+	for (int i = 0; i < (int)PaletteIndex::Max; ++i)
+	{
+		ImVec4 color = U32ColorToVec4((*palletteBase)[i]);
+		color.w *= ImGui::GetStyle().Alpha;
+		mPalette[i] = ImGui::ColorConvertFloat4ToU32(color);
+	}
 }
 
 void TextEditor::OnCursorPositionChanged()

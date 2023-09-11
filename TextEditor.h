@@ -17,6 +17,13 @@ class IMGUI_API TextEditor
 	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
 	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
 public:
+	enum class PaletteId
+	{
+		Dark,
+		Light,
+		Mariana,
+		RetroBlue
+	};
 	enum class PaletteIndex
 	{
 		Default,
@@ -246,9 +253,6 @@ public:
 	void SetLanguageDefinition(const LanguageDefinition& aLanguageDef);
 	const char* GetLanguageDefinitionName() const;
 
-	const Palette& GetPalette() const { return mPaletteBase; }
-	void SetPalette(const Palette& aValue);
-
 	bool Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
 	void SetText(const std::string& aText);
 	std::string GetText() const;
@@ -268,6 +272,10 @@ public:
 	bool IsReadOnlyEnabled() const { return mReadOnly; }
 	void SetAutoIndentEnabled(bool aValue);
 	bool IsAutoIndentEnabled() const { return mAutoIndent; }
+	void SetPalette(PaletteId aValue);
+	PaletteId GetPalette() const { return mPaletteId; }
+	inline static void SetDefaultPalette(PaletteId aValue) { defaultPalette = aValue; }
+	inline static PaletteId GetDefaultPalette() { return defaultPalette; }
 
 	void OnCursorPositionChanged();
 
@@ -364,13 +372,6 @@ public:
 	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
 	void SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
 
-	static const Palette& GetMarianaPalette();
-	static const Palette& GetDarkPalette();
-	static const Palette& GetLightPalette();
-	static const Palette& GetRetroBluePalette();
-
-	static bool IsGlyphWordChar(const Glyph& aGlyph);
-
 	void ImGuiDebugPanel(const std::string& panelName = "Debug");
 	void UnitTests();
 private:
@@ -450,7 +451,6 @@ private:
 
 	void HandleKeyboardInputs(bool aParentIsFocused = false);
 	void HandleMouseInputs();
-	void UpdatePalette();
 	void Render(bool aParentIsFocused = false);
 
 	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
@@ -475,7 +475,7 @@ private:
 	bool mShowWhitespaces;
 	float mLongestLineLength;
 
-	Palette mPaletteBase;
+	PaletteId mPaletteId;
 	Palette mPalette;
 	const LanguageDefinition* mLanguageDefinition = nullptr;
 	RegexList mRegexList;
@@ -486,4 +486,13 @@ private:
 	uint64_t mStartTime;
 
 	float mLastClick;
+
+
+	static const Palette& GetMarianaPalette();
+	static const Palette& GetDarkPalette();
+	static const Palette& GetLightPalette();
+	static const Palette& GetRetroBluePalette();
+	static PaletteId defaultPalette;
+
+	static bool IsGlyphWordChar(const Glyph& aGlyph);
 };
