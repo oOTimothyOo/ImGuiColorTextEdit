@@ -339,7 +339,7 @@ public:
 	void InsertText(const char* aValue, int aCursor = -1);
 
 	enum class MoveDirection { Right = 0, Left = 1, Up = 2, Down = 3 };
-	bool Move(int& aLine, int& aCharIndex, bool aLeft = false) const;
+	bool Move(int& aLine, int& aCharIndex, bool aLeft = false, bool aLockLine = false) const;
 	void MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode = false, int aLineCount = 1) const;
 
 	void MoveUp(int aAmount = 1, bool aSelect = false);

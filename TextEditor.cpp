@@ -384,76 +384,57 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 
 TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) const
 {
-	Coordinates at = aFrom;
-	if (at.mLine >= (int)mLines.size())
-		return at;
+	if (aFrom.mLine >= (int)mLines.size())
+		return aFrom;
 
-	auto& line = mLines[at.mLine];
-	auto cindex = GetCharacterIndexL(at);
+	auto& line = mLines[aFrom.mLine];
+	int charIndex = GetCharacterIndexL(aFrom);
 
-	if (cindex >= (int)line.size())
-		return at;
+	if (charIndex >= (int)line.size())
+		return aFrom;
 
-	bool initialIsWordChar = IsGlyphWordChar(line[cindex]);
-	bool initialIsSpace = isspace(line[cindex].mChar);
-	uint8_t initialChar = line[cindex].mChar;
-	bool needToAdvance = false;
-	while (true)
+	bool initialIsWordChar = IsGlyphWordChar(line[charIndex]);
+	bool initialIsSpace = isspace(line[charIndex].mChar);
+	char initialChar = line[charIndex].mChar;
+	while (Move((int)aFrom.mLine, charIndex, true, true))
 	{
-		--cindex;
-		if (cindex < 0)
+		bool isWordChar = IsGlyphWordChar(line[charIndex]);
+		bool isSpace = isspace(line[charIndex].mChar);
+		if (initialIsSpace && !isSpace ||
+			initialIsWordChar && !isWordChar ||
+			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
 		{
-			cindex = 0;
+			Move((int)aFrom.mLine, charIndex, false, true); // one step to the right
 			break;
 		}
-
-		auto c = line[cindex].mChar;
-		if (!IsUTFSequence(c))
-		{
-			bool isWordChar = IsGlyphWordChar(line[cindex]);
-			bool isSpace = isspace(line[cindex].mChar);
-			if (initialIsSpace && !isSpace || initialIsWordChar && !isWordChar || !initialIsWordChar && !initialIsSpace && initialChar != line[cindex].mChar)
-			{
-				needToAdvance = true;
-				break;
-			}
-		}
 	}
-	at.mColumn = GetCharacterColumn(at.mLine, cindex);
-	if (needToAdvance)
-		MoveCoords(at, MoveDirection::Right);
-	return at;
+	return { aFrom.mLine, GetCharacterColumn(aFrom.mLine, charIndex) };
 }
 
 TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 {
-	Coordinates at = aFrom;
-	if (at.mLine >= (int)mLines.size())
-		return at;
+	if (aFrom.mLine >= (int)mLines.size())
+		return aFrom;
 
-	auto& line = mLines[at.mLine];
-	auto cindex = GetCharacterIndexL(at);
+	auto& line = mLines[aFrom.mLine];
+	auto charIndex = GetCharacterIndexL(aFrom);
 
-	if (cindex >= (int)line.size())
-		return at;
+	if (charIndex >= (int)line.size())
+		return aFrom;
 
-	bool initialIsWordChar = IsGlyphWordChar(line[cindex]);
-	bool initialIsSpace = isspace(line[cindex].mChar);
-	uint8_t initialChar = line[cindex].mChar;
-	while (true)
+	bool initialIsWordChar = IsGlyphWordChar(line[charIndex]);
+	bool initialIsSpace = isspace(line[charIndex].mChar);
+	char initialChar = line[charIndex].mChar;
+	while (Move((int)aFrom.mLine, charIndex, false, true))
 	{
-		auto d = UTF8CharLength(line[cindex].mChar);
-		cindex += d;
-		if (cindex >= (int)line.size())
-			break;
-
-		bool isWordChar = IsGlyphWordChar(line[cindex]);
-		bool isSpace = isspace(line[cindex].mChar);
-		if (initialIsSpace && !isSpace || initialIsWordChar && !isWordChar || !initialIsWordChar && !initialIsSpace && initialChar != line[cindex].mChar)
+		bool isWordChar = IsGlyphWordChar(line[charIndex]);
+		bool isSpace = isspace(line[charIndex].mChar);
+		if (initialIsSpace && !isSpace ||
+			initialIsWordChar && !isWordChar ||
+			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
 			break;
 	}
-	at.mColumn = GetCharacterColumn(at.mLine, cindex);
-	return at;
+	return { aFrom.mLine, GetCharacterColumn(aFrom.mLine, charIndex) };
 }
 
 TextEditor::Coordinates TextEditor::FindNextWord(const Coordinates& aFrom) const
@@ -1931,7 +1912,7 @@ void TextEditor::DeleteSelection(int aCursor)
 	Colorize(mState.mCursors[aCursor].GetSelectionStart().mLine, 1);
 }
 
-bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft) const
+bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft, bool aLockLine) const
 {
 	// assumes given char index is not in the middle of utf8 sequence
 	// char index can be line.length()
@@ -1944,7 +1925,7 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft) const
 	{
 		if (aCharIndex == 0)
 		{
-			if (aLine == 0)
+			if (aLockLine || aLine == 0)
 				return false;
 			aLine--;
 			aCharIndex = mLines[aLine].size();
@@ -1960,7 +1941,7 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft) const
 	{
 		if (aCharIndex == mLines[aLine].size())
 		{
-			if (aLine == mLines.size() - 1)
+			if (aLockLine || aLine == mLines.size() - 1)
 				return false;
 			aLine++;
 			aCharIndex = 0;
