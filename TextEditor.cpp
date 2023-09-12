@@ -1365,15 +1365,14 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 
 bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out)
 {
-	// assuming bracket chars cannot be part of utf8 sequence
+	int currentLine = aLine;
+	int currentCharIndex = aCharIndex;
+	int counter = 1;
 	if (CLOSE_TO_OPEN_CHAR.find(mLines[aLine][aCharIndex].mChar) != CLOSE_TO_OPEN_CHAR.end())
 	{
 		char closeChar = mLines[aLine][aCharIndex].mChar;
 		char openChar = CLOSE_TO_OPEN_CHAR.at(closeChar);
-		int currentLine = aLine;
-		int currentCharIndex = aCharIndex;
-		int counter = 0;
-		while (true)
+		while (Move(currentLine, currentCharIndex, true))
 		{
 			if (currentCharIndex < mLines[currentLine].size())
 			{
@@ -1390,26 +1389,13 @@ bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out
 				else if (currentChar == closeChar)
 					counter++;
 			}
-
-			if (currentCharIndex == 0)
-			{
-				if (currentLine == 0)
-					break;
-				currentLine--;
-				currentCharIndex = mLines[currentLine].size() - 1;
-			}
-			else
-				currentCharIndex--;
 		}
 	}
 	else if (OPEN_TO_CLOSE_CHAR.find(mLines[aLine][aCharIndex].mChar) != OPEN_TO_CLOSE_CHAR.end())
 	{
 		char openChar = mLines[aLine][aCharIndex].mChar;
 		char closeChar = OPEN_TO_CLOSE_CHAR.at(openChar);
-		int currentLine = aLine;
-		int currentCharIndex = aCharIndex;
-		int counter = 0;
-		while (true)
+		while (Move(currentLine, currentCharIndex))
 		{
 			if (currentCharIndex < mLines[currentLine].size())
 			{
@@ -1426,16 +1412,6 @@ bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out
 				else if (currentChar == openChar)
 					counter++;
 			}
-
-			if (currentCharIndex == mLines[currentLine].size())
-			{
-				if (currentLine == mLines.size() - 1)
-					break;
-				currentLine++;
-				currentCharIndex = 0;
-			}
-			else
-				currentCharIndex++;
 		}
 	}
 	return false;
@@ -1955,27 +1931,68 @@ void TextEditor::DeleteSelection(int aCursor)
 	Colorize(mState.mCursors[aCursor].GetSelectionStart().mLine, 1);
 }
 
+bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft) const
+{
+	// assumes given char index is not in the middle of utf8 sequence
+	// char index can be line.length()
+
+	// invalid line
+	if (aLine >= mLines.size())
+		return false;
+
+	if (aLeft)
+	{
+		if (aCharIndex == 0)
+		{
+			if (aLine == 0)
+				return false;
+			aLine--;
+			aCharIndex = mLines[aLine].size();
+		}
+		else
+		{
+			aCharIndex--;
+			while (aCharIndex > 0 && IsUTFSequence(mLines[aLine][aCharIndex].mChar))
+				aCharIndex--;
+		}
+	}
+	else // right
+	{
+		if (aCharIndex == mLines[aLine].size())
+		{
+			if (aLine == mLines.size() - 1)
+				return false;
+			aLine++;
+			aCharIndex = 0;
+		}
+		else
+		{
+			int seqLength = UTF8CharLength(mLines[aLine][aCharIndex].mChar);
+			aCharIndex = std::min(aCharIndex + seqLength, (int)mLines[aLine].size());
+		}
+	}
+	return true;
+}
+
 void TextEditor::MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode, int aLineCount) const
 {
-	int cindex = GetCharacterIndexR(aCoords);
-	int lindex = aCoords.mLine;
-	auto& line = mLines[lindex];
+	int charIndex = GetCharacterIndexR(aCoords);
+	int lineIndex = aCoords.mLine;
 	switch (aDirection)
 	{
 	case MoveDirection::Right:
-		if (cindex >= line.size())
+		if (charIndex >= mLines[lineIndex].size())
 		{
-			if (lindex < mLines.size() - 1)
+			if (lineIndex < mLines.size() - 1)
 			{
-				aCoords.mLine = std::max(0, std::min((int)mLines.size() - 1, lindex + 1));
+				aCoords.mLine = std::max(0, std::min((int)mLines.size() - 1, lineIndex + 1));
 				aCoords.mColumn = 0;
 			}
 		}
 		else
 		{
-			int delta = UTF8CharLength(line[cindex].mChar);
-			cindex = std::min(cindex + delta, (int)line.size());
-			int oneStepRightColumn = GetCharacterColumn(lindex, cindex);
+			Move(lineIndex, charIndex);
+			int oneStepRightColumn = GetCharacterColumn(lineIndex, charIndex);
 			if (aWordMode)
 			{
 				aCoords = FindWordEnd(aCoords);
@@ -1986,35 +2003,27 @@ void TextEditor::MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool
 		}
 		break;
 	case MoveDirection::Left:
-		if (cindex == 0)
+		if (charIndex == 0)
 		{
-			if (lindex > 0)
+			if (lineIndex > 0)
 			{
-				aCoords.mLine = lindex - 1;
+				aCoords.mLine = lineIndex - 1;
 				aCoords.mColumn = GetLineMaxColumn(aCoords.mLine);
 			}
 		}
 		else
 		{
-			--cindex;
-			if (cindex > 0)
-			{
-				if ((int)mLines.size() > lindex)
-				{
-					while (cindex > 0 && IsUTFSequence(mLines[lindex][cindex].mChar))
-						--cindex;
-				}
-			}
-			aCoords.mColumn = GetCharacterColumn(lindex, cindex);
+			Move(lineIndex, charIndex, true);
+			aCoords.mColumn = GetCharacterColumn(lineIndex, charIndex);
 			if (aWordMode)
 				aCoords = FindWordStart(aCoords);
 		}
 		break;
 	case MoveDirection::Up:
-		aCoords.mLine = std::max(0, lindex - aLineCount);
+		aCoords.mLine = std::max(0, lineIndex - aLineCount);
 		break;
 	case MoveDirection::Down:
-		aCoords.mLine = std::max(0, std::min((int)mLines.size() - 1, lindex + aLineCount));
+		aCoords.mLine = std::max(0, std::min((int)mLines.size() - 1, lineIndex + aLineCount));
 		break;
 	}
 }
