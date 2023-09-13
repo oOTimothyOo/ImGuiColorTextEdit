@@ -1689,6 +1689,8 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	char initialChar = line[charIndex].mChar;
 	while (Move((int)aFrom.mLine, charIndex, false, true))
 	{
+		if (charIndex == line.size())
+			break;
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
 		bool isSpace = isspace(line[charIndex].mChar);
 		if (initialIsSpace && !isSpace ||
