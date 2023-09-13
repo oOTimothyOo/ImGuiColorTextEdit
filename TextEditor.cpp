@@ -1989,9 +1989,9 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		else if ((isOSX ? !ctrl : !alt) && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
 			MoveRight(shift, isWordmoveKey);
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp)))
-			MoveUp(mVisibleLineCount - 1, shift);
+			MoveUp(mVisibleLineCount - 2, shift);
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown)))
-			MoveDown(mVisibleLineCount - 1, shift);
+			MoveDown(mVisibleLineCount - 2, shift);
 		else if (ctrl && !alt && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home)))
 			MoveTop(shift);
 		else if (ctrl && !alt && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
