@@ -113,9 +113,6 @@ private:
 
 	// ------------- Internal ------------- //
 
-	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
-	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
-
 	enum class PaletteIndex
 	{
 		Default,
@@ -274,7 +271,6 @@ private:
 	};
 
 	typedef std::unordered_map<std::string, Identifier> Identifiers;
-	typedef std::unordered_set<std::string> Keywords;
 	typedef std::array<ImU32, (unsigned)PaletteIndex::Max> Palette;
 
 	struct Glyph
@@ -290,31 +286,21 @@ private:
 	};
 
 	typedef std::vector<Glyph> Line;
-	typedef std::vector<Line> Lines;
 
 	struct LanguageDefinition
 	{
 		typedef std::pair<std::string, PaletteIndex> TokenRegexString;
-		typedef std::vector<TokenRegexString> TokenRegexStrings;
 		typedef bool(*TokenizeCallback)(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex);
 
 		std::string mName;
-		Keywords mKeywords;
+		std::unordered_set<std::string> mKeywords;
 		Identifiers mIdentifiers;
 		Identifiers mPreprocIdentifiers;
 		std::string mCommentStart, mCommentEnd, mSingleLineComment;
-		char mPreprocChar;
-
-		TokenizeCallback mTokenize;
-
-		TokenRegexStrings mTokenRegexStrings;
-
-		bool mCaseSensitive;
-
-		LanguageDefinition()
-			: mPreprocChar('#'), mTokenize(nullptr), mCaseSensitive(true)
-		{
-		}
+		char mPreprocChar = '#';
+		TokenizeCallback mTokenize = nullptr;
+		std::vector<TokenRegexString> mTokenRegexStrings;
+		bool mCaseSensitive = true;
 
 		static const LanguageDefinition& Cpp();
 		static const LanguageDefinition& Hlsl();
@@ -337,49 +323,35 @@ private:
 		UndoOperationType mType;
 	};
 
+	typedef std::vector<std::pair<boost::regex, PaletteIndex>> RegexList;
+
+	class UndoRecord
+	{
+	public:
+		UndoRecord() {}
+		~UndoRecord() {}
+
+		UndoRecord(
+			const std::vector<UndoOperation>& aOperations,
+			TextEditor::EditorState& aBefore,
+			TextEditor::EditorState& aAfter);
+
+		void Undo(TextEditor* aEditor);
+		void Redo(TextEditor* aEditor);
+
+		std::vector<UndoOperation> mOperations;
+
+		EditorState mBefore;
+		EditorState mAfter;
+	};
+
 	std::string GetClipboardText() const;
 	std::string GetSelectedText(int aCursor = -1) const;
 	std::string GetCurrentLineText()const;
 
 	void OnCursorPositionChanged();
 
-	bool IsColorizerEnabled() const { return mColorizerEnabled; }
-	void SetColorizerEnable(bool aValue);
-
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1, bool aClearSelection = true);
-	// void SetCursorPosition(int aLine, int aCharIndex, int aCursor = -1, bool aClearSelection = true);
-
-	inline void OnLineDeleted(int aLineIndex, const std::unordered_set<int>* aHandledCursors = nullptr)
-	{
-		for (int c = 0; c <= mState.mCurrentCursor; c++)
-		{
-			if (mState.mCursors[c].mInteractiveEnd.mLine >= aLineIndex)
-			{
-				if (aHandledCursors == nullptr || aHandledCursors->find(c) == aHandledCursors->end()) // move up if has not been handled already
-					SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine - 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
-			}
-		}
-	}
-	inline void OnLinesDeleted(int aFirstLineIndex, int aLastLineIndex)
-	{
-		for (int c = 0; c <= mState.mCurrentCursor; c++)
-		{
-			if (mState.mCursors[c].mInteractiveEnd.mLine >= aFirstLineIndex)
-			{
-				int targetLine = mState.mCursors[c].mInteractiveEnd.mLine - (aLastLineIndex - aFirstLineIndex);
-				targetLine = targetLine < 0 ? 0 : targetLine;
-				SetCursorPosition({ targetLine , mState.mCursors[c].mInteractiveEnd.mColumn }, c);
-			}
-		}
-	}
-	inline void OnLineAdded(int aLineIndex)
-	{
-		for (int c = 0; c <= mState.mCurrentCursor; c++)
-		{
-			if (mState.mCursors[c].mInteractiveEnd.mLine >= aLineIndex)
-				SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine + 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
-		}
-	}
 
 	void InsertText(const std::string& aValue, int aCursor = -1);
 	void InsertText(const char* aValue, int aCursor = -1);
@@ -403,31 +375,8 @@ private:
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
 	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
 
-	typedef std::vector<std::pair<boost::regex, PaletteIndex>> RegexList;
-
 	void MergeCursorsIfPossible();
 
-	class UndoRecord
-	{
-	public:
-		UndoRecord() {}
-		~UndoRecord() {}
-
-		UndoRecord(
-			const std::vector<UndoOperation>& aOperations,
-			TextEditor::EditorState& aBefore,
-			TextEditor::EditorState& aAfter);
-
-		void Undo(TextEditor* aEditor);
-		void Redo(TextEditor* aEditor);
-
-		std::vector<UndoOperation> mOperations;
-
-		EditorState mBefore;
-		EditorState mAfter;
-	};
-
-	typedef std::vector<UndoRecord> UndoBuffer;
 
 	void Colorize(int aFromLine = 0, int aCount = -1);
 	void ColorizeRange(int aFromLine = 0, int aToLine = 0);
@@ -448,14 +397,16 @@ private:
 	int GetCharacterIndexR(const Coordinates& aCoordinates) const;
 	int GetCharacterColumn(int aLine, int aIndex) const;
 	int GetLineMaxColumn(int aLine) const;
-	void RemoveLines(int aStart, int aEnd);
+
+	Line& InsertLine(int aIndex);
 	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
+	void RemoveLines(int aStart, int aEnd);
+	
 	void RemoveCurrentLines();
 	void OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int aCharCount, bool aDeleted);
 	void RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar = -1);
 	void AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSourceStart, Line::iterator aSourceEnd);
 	void AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph);
-	Line& InsertLine(int aIndex);
 
 	void ChangeCurrentLinesIndentation(bool aIncrease);
 	void MoveUpCurrentLines();
@@ -476,44 +427,43 @@ private:
 	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
 	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
 
-	float mLineSpacing;
-	Lines mLines;
+	std::vector<Line> mLines;
 	EditorState mState;
-	UndoBuffer mUndoBuffer;
-	int mUndoIndex;
+	std::vector<UndoRecord> mUndoBuffer;
+	int mUndoIndex = 0;
 
-	int mTabSize;
-	bool mOverwrite;
-	bool mReadOnly;
-	bool mAutoIndent;
-	int mEnsureCursorVisible;
-	bool mScrollToTop;
-	bool mColorizerEnabled;
-	float mTextStart;                   // position (in pixels) where a code line starts relative to the left of the TextEditor.
-	int  mLeftMargin;
-	int mColorRangeMin, mColorRangeMax;
-	bool mShowWhitespaces;
-	float mLongestLineLength;
+	int mTabSize = 4;
+	float mLineSpacing = 1.0f;
+	bool mOverwrite = false;
+	bool mReadOnly = false;
+	bool mAutoIndent = true;
+	bool mShowWhitespaces = true;
 
+	int mEnsureCursorVisible = -1;
+	bool mScrollToTop = false;
+
+	float mTextStart = 20.0f; // position (in pixels) where a code line starts relative to the left of the TextEditor.
+	int mLeftMargin = 10;
+	ImVec2 mCharAdvance;
+	float mLongestLineLength = 20.0f;
+	float mLastClick = -1.0f;
+
+	int mColorRangeMin = 0;
+	int mColorRangeMax = 0;
+	bool mCheckComments = true;
 	PaletteId mPaletteId;
 	Palette mPalette;
 	LanguageDefinitionId mLanguageDefinitionId;
 	const LanguageDefinition* mLanguageDefinition = nullptr;
 	RegexList mRegexList;
-
-	bool mCheckComments;
-	ImVec2 mCharAdvance;
 	std::string mLineBuffer;
-	uint64_t mStartTime;
-
-	float mLastClick;
-
 
 	static const Palette& GetMarianaPalette();
 	static const Palette& GetDarkPalette();
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
-	static PaletteId defaultPalette;
-
+	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
+	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
 	static bool IsGlyphWordChar(const Glyph& aGlyph);
+	static PaletteId defaultPalette;
 };

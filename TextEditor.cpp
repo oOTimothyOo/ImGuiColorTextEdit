@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <chrono>
 #include <string>
 #include <cmath>
 #include <set>
@@ -13,24 +12,6 @@
 // ------------- Exposed API ------------- //
 
 TextEditor::TextEditor()
-	: mLineSpacing(1.0f)
-	, mUndoIndex(0)
-	, mTabSize(4)
-	, mOverwrite(false)
-	, mReadOnly(false)
-	, mAutoIndent(true)
-	, mEnsureCursorVisible(-1)
-	, mScrollToTop(false)
-	, mColorizerEnabled(true)
-	, mTextStart(20.0f)
-	, mLongestLineLength(20.0f)
-	, mLeftMargin(10)
-	, mColorRangeMin(0)
-	, mColorRangeMax(0)
-	, mCheckComments(true)
-	, mShowWhitespaces(true)
-	, mStartTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
-	, mLastClick(-1.0f)
 {
 	SetPalette(defaultPalette);
 	mLines.push_back(Line());
@@ -788,10 +769,6 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 			else
 				break;
 		}
-
-		// Then we reduce by 1 column coord if cursor is on the left side of the hovered column.
-		//if (aInsertionMode && mTextStart + columnX - columnWidth * 2.0f < local.x)
-		//	columnIndex = std::min((int)line.size() - 1, columnIndex + 1);
 	}
 
 	return SanitizeCoordinates(Coordinates(lineNo, columnCoord));
@@ -944,7 +921,16 @@ void TextEditor::RemoveLines(int aStart, int aEnd)
 	mLines.erase(mLines.begin() + aStart, mLines.begin() + aEnd);
 	assert(!mLines.empty());
 
-	OnLinesDeleted(aStart, aEnd);
+	// handle multiple cursors
+	for (int c = 0; c <= mState.mCurrentCursor; c++)
+	{
+		if (mState.mCursors[c].mInteractiveEnd.mLine >= aStart)
+		{
+			int targetLine = mState.mCursors[c].mInteractiveEnd.mLine - (aEnd - aStart);
+			targetLine = targetLine < 0 ? 0 : targetLine;
+			SetCursorPosition({ targetLine , mState.mCursors[c].mInteractiveEnd.mColumn }, c);
+		}
+	}
 }
 
 void TextEditor::RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors)
@@ -955,7 +941,15 @@ void TextEditor::RemoveLine(int aIndex, const std::unordered_set<int>* aHandledC
 	mLines.erase(mLines.begin() + aIndex);
 	assert(!mLines.empty());
 
-	OnLineDeleted(aIndex, aHandledCursors);
+	// handle multiple cursors
+	for (int c = 0; c <= mState.mCurrentCursor; c++)
+	{
+		if (mState.mCursors[c].mInteractiveEnd.mLine >= aIndex)
+		{
+			if (aHandledCursors == nullptr || aHandledCursors->find(c) == aHandledCursors->end()) // move up if has not been handled already
+				SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine - 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
+		}
+	}
 }
 
 void TextEditor::RemoveCurrentLines()
@@ -1070,9 +1064,13 @@ void TextEditor::AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph)
 TextEditor::Line& TextEditor::InsertLine(int aIndex)
 {
 	assert(!mReadOnly);
-
 	auto& result = *mLines.insert(mLines.begin() + aIndex, Line());
-	OnLineAdded(aIndex);
+
+	for (int c = 0; c <= mState.mCurrentCursor; c++) // handle multiple cursors
+	{
+		if (mState.mCursors[c].mInteractiveEnd.mLine >= aIndex)
+			SetCursorPosition({ mState.mCursors[c].mInteractiveEnd.mLine + 1, mState.mCursors[c].mInteractiveEnd.mColumn }, c);
+	}
 
 	return result;
 }
@@ -1101,7 +1099,7 @@ std::string TextEditor::GetWordAt(const Coordinates& aCoords) const
 
 ImU32 TextEditor::GetGlyphColor(const Glyph& aGlyph) const
 {
-	if (!mColorizerEnabled)
+	if (mLanguageDefinition == nullptr)
 		return mPalette[(int)PaletteIndex::Default];
 	if (aGlyph.mComment)
 		return mPalette[(int)PaletteIndex::Comment];
@@ -1376,12 +1374,6 @@ void TextEditor::Render(bool aParentIsFocused)
 
 	auto drawList = ImGui::GetWindowDrawList();
 
-	if (mScrollToTop)
-	{
-		mScrollToTop = false;
-		ImGui::SetScrollY(0.f);
-	}
-
 	// Deduce mTextStart by evaluating mLines size (global lineMax) plus two spaces as text width
 	char buf[16];
 	snprintf(buf, 16, " %d ", mLines.size());
@@ -1604,6 +1596,11 @@ void TextEditor::Render(bool aParentIsFocused)
 				ImGui::SetScrollX(targetScroll);
 		}
 		mEnsureCursorVisible = -1;
+	}
+	else if (mScrollToTop)
+	{
+		ImGui::SetScrollY(0.0f);
+		mScrollToTop = false;
 	}
 }
 
@@ -2057,11 +2054,6 @@ void TextEditor::OnCursorPositionChanged()
 
 	mState.SortCursorsFromTopToBottom();
 	MergeCursorsIfPossible();
-}
-
-void TextEditor::SetColorizerEnable(bool aValue)
-{
-	mColorizerEnabled = aValue;
 }
 
 void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor, bool aClearSelection)
@@ -2755,7 +2747,7 @@ void TextEditor::ColorizeRange(int aFromLine, int aToLine)
 
 void TextEditor::ColorizeInternal()
 {
-	if (mLines.empty() || !mColorizerEnabled || mLanguageDefinition == nullptr)
+	if (mLines.empty() || mLanguageDefinition == nullptr)
 		return;
 
 	if (mCheckComments)
