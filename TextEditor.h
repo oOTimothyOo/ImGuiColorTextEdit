@@ -220,24 +220,10 @@ private:
 		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
 	};
 
-	struct EditorState
+	struct EditorState // state to be restored with undo/redo
 	{
-		int mFirstVisibleLine = 0;
-		int mLastVisibleLine = 0;
-		int mVisibleLineCount = 0;
-		int mFirstVisibleColumn = 0;
-		int mLastVisibleColumn = 0;
-		int mVisibleColumnCount = 0;
-		float mContentWidth = 0.0f;
-		float mContentHeight = 0.0f;
-		float mScrollX = 0.0f;
-		float mScrollY = 0.0f;
-		bool mPanning = false;
-		bool mDraggingSelection = false;
-		ImVec2 mLastMousePos;
 		int mCurrentCursor = 0;
 		int mLastAddedCursor = 0;
-		bool mCursorPositionChanged = false;
 		std::vector<Cursor> mCursors = { {{0,0}} };
 		void AddCursor();
 		int GetLastAddedCursorIndex();
@@ -422,6 +408,20 @@ private:
 	ImVec2 mCharAdvance;
 	float mLongestLineLength = 20.0f;
 	float mLastClick = -1.0f;
+	int mFirstVisibleLine = 0;
+	int mLastVisibleLine = 0;
+	int mVisibleLineCount = 0;
+	int mFirstVisibleColumn = 0;
+	int mLastVisibleColumn = 0;
+	int mVisibleColumnCount = 0;
+	float mContentWidth = 0.0f;
+	float mContentHeight = 0.0f;
+	float mScrollX = 0.0f;
+	float mScrollY = 0.0f;
+	bool mPanning = false;
+	bool mDraggingSelection = false;
+	ImVec2 mLastMousePos;
+	bool mCursorPositionChanged = false;
 
 	int mColorRangeMin = 0;
 	int mColorRangeMax = 0;

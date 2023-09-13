@@ -417,9 +417,9 @@ std::vector<std::string> TextEditor::GetTextLines() const
 
 bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
 {
-	if (mState.mCursorPositionChanged)
+	if (mCursorPositionChanged)
 		OnCursorPositionChanged();
-	mState.mCursorPositionChanged = false;
+	mCursorPositionChanged = false;
 
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(mPalette[(int)PaletteIndex::Background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
@@ -649,7 +649,7 @@ void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor, bo
 	if (aCursor == -1)
 		aCursor = mState.mCurrentCursor;
 
-	mState.mCursorPositionChanged = true;
+	mCursorPositionChanged = true;
 	if (aClearSelection)
 		mState.mCursors[aCursor].mInteractiveStart = aPosition;
 	if (mState.mCursors[aCursor].mInteractiveEnd != aPosition)
@@ -1989,9 +1989,9 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		else if ((isOSX ? !ctrl : !alt) && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow)))
 			MoveRight(shift, isWordmoveKey);
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageUp)))
-			MoveUp(mState.mVisibleLineCount - 1, shift);
+			MoveUp(mVisibleLineCount - 1, shift);
 		else if (!alt && !ctrl && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_PageDown)))
-			MoveDown(mState.mVisibleLineCount - 1, shift);
+			MoveDown(mVisibleLineCount - 1, shift);
 		else if (ctrl && !alt && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home)))
 			MoveTop(shift);
 		else if (ctrl && !alt && !super && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_End)))
@@ -2061,23 +2061,23 @@ void TextEditor::HandleMouseInputs()
 	/*
 	Pan with middle mouse button
 	*/
-	mState.mPanning &= ImGui::IsMouseDown(2);
-	if (mState.mPanning && ImGui::IsMouseDragging(2))
+	mPanning &= ImGui::IsMouseDown(2);
+	if (mPanning && ImGui::IsMouseDragging(2))
 	{
 		ImVec2 scroll = { ImGui::GetScrollX(), ImGui::GetScrollY() };
 		ImVec2 currentMousePos = ImGui::GetMouseDragDelta(2);
 		ImVec2 mouseDelta = {
-			currentMousePos.x - mState.mLastMousePos.x,
-			currentMousePos.y - mState.mLastMousePos.y
+			currentMousePos.x - mLastMousePos.x,
+			currentMousePos.y - mLastMousePos.y
 		};
 		ImGui::SetScrollY(scroll.y - mouseDelta.y);
 		ImGui::SetScrollX(scroll.x - mouseDelta.x);
-		mState.mLastMousePos = currentMousePos;
+		mLastMousePos = currentMousePos;
 	}
 
 	// Mouse left button dragging (=> update selection)
-	mState.mDraggingSelection &= ImGui::IsMouseDown(0);
-	if (mState.mDraggingSelection && ImGui::IsMouseDragging(0))
+	mDraggingSelection &= ImGui::IsMouseDown(0);
+	if (mDraggingSelection && ImGui::IsMouseDragging(0))
 	{
 		io.WantCaptureMouse = true;
 		Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), !mOverwrite);
@@ -2093,7 +2093,7 @@ void TextEditor::HandleMouseInputs()
 			auto t = ImGui::GetTime();
 			auto tripleClick = click && !doubleClick && (mLastClick != -1.0f && (t - mLastClick) < io.MouseDoubleClickTime);
 			if (click)
-				mState.mDraggingSelection = true;
+				mDraggingSelection = true;
 
 			/*
 			Pan with middle mouse button
@@ -2101,8 +2101,8 @@ void TextEditor::HandleMouseInputs()
 
 			if (ImGui::IsMouseClicked(2))
 			{
-				mState.mPanning = true;
-				mState.mLastMousePos = ImGui::GetMouseDragDelta(2);
+				mPanning = true;
+				mLastMousePos = ImGui::GetMouseDragDelta(2);
 			}
 
 			/*
@@ -2199,24 +2199,24 @@ void TextEditor::Render(bool aParentIsFocused)
 	mTextStart = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf, nullptr, nullptr).x + mLeftMargin;
 
 	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
-	mState.mScrollX = ImGui::GetScrollX();
-	mState.mScrollY = ImGui::GetScrollY();
-	mState.mContentHeight = ImGui::GetWindowHeight();
-	mState.mContentWidth = ImGui::GetWindowWidth();
+	mScrollX = ImGui::GetScrollX();
+	mScrollY = ImGui::GetScrollY();
+	mContentHeight = ImGui::GetWindowHeight();
+	mContentWidth = ImGui::GetWindowWidth();
 
-	mState.mVisibleLineCount = (int)ceil(mState.mContentHeight / mCharAdvance.y);
-	mState.mFirstVisibleLine = (int)(mState.mScrollY / mCharAdvance.y);
-	mState.mLastVisibleLine = (int)((mState.mContentHeight + mState.mScrollY) / mCharAdvance.y);
+	mVisibleLineCount = (int)ceil(mContentHeight / mCharAdvance.y);
+	mFirstVisibleLine = (int)(mScrollY / mCharAdvance.y);
+	mLastVisibleLine = (int)((mContentHeight + mScrollY) / mCharAdvance.y);
 
-	mState.mVisibleColumnCount = (int)ceil((mState.mContentWidth - std::max(mTextStart - mState.mScrollX, 0.0f)) / mCharAdvance.x);
-	mState.mFirstVisibleColumn = (int)(std::max(mState.mScrollX - mTextStart, 0.0f) / mCharAdvance.x);
-	mState.mLastVisibleColumn = (int)((mState.mContentWidth + mState.mScrollX - mTextStart) / mCharAdvance.x);
+	mVisibleColumnCount = (int)ceil((mContentWidth - std::max(mTextStart - mScrollX, 0.0f)) / mCharAdvance.x);
+	mFirstVisibleColumn = (int)(std::max(mScrollX - mTextStart, 0.0f) / mCharAdvance.x);
+	mLastVisibleColumn = (int)((mContentWidth + mScrollX - mTextStart) / mCharAdvance.x);
 
 	if (!mLines.empty())
 	{
 		float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
 
-		for (int lineNo = mState.mFirstVisibleLine; lineNo <= mState.mLastVisibleLine && lineNo < mLines.size(); lineNo++)
+		for (int lineNo = mFirstVisibleLine; lineNo <= mLastVisibleLine && lineNo < mLines.size(); lineNo++)
 		{
 			ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNo * mCharAdvance.y);
 			ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
@@ -2385,33 +2385,33 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 
 	ImGui::SetCursorPos(ImVec2(0, 0));
-	ImGui::Dummy(ImVec2((mLongestLineLength + ImGui::GetWindowWidth() / 2.0f), (mLines.size() + mState.mVisibleLineCount - 1) * mCharAdvance.y));
+	ImGui::Dummy(ImVec2((mLongestLineLength + ImGui::GetWindowWidth() / 2.0f), (mLines.size() + mVisibleLineCount - 1) * mCharAdvance.y));
 
 	if (mEnsureCursorVisible > -1)
 	{
 		auto pos = GetActualCursorCoordinates(mEnsureCursorVisible);
-		if (pos.mLine <= mState.mFirstVisibleLine)
+		if (pos.mLine <= mFirstVisibleLine)
 		{
 			float targetScroll = std::max(0.0f, (pos.mLine - 0.5f) * mCharAdvance.y);
-			if (targetScroll < mState.mScrollY)
+			if (targetScroll < mScrollY)
 				ImGui::SetScrollY(targetScroll);
 		}
-		if (pos.mLine >= mState.mLastVisibleLine)
+		if (pos.mLine >= mLastVisibleLine)
 		{
-			float targetScroll = std::max(0.0f, (pos.mLine + 1.5f) * mCharAdvance.y - mState.mContentHeight);
-			if (targetScroll > mState.mScrollY)
+			float targetScroll = std::max(0.0f, (pos.mLine + 1.5f) * mCharAdvance.y - mContentHeight);
+			if (targetScroll > mScrollY)
 				ImGui::SetScrollY(targetScroll);
 		}
-		if (pos.mColumn <= mState.mFirstVisibleColumn)
+		if (pos.mColumn <= mFirstVisibleColumn)
 		{
 			float targetScroll = std::max(0.0f, mTextStart + (pos.mColumn - 0.5f) * mCharAdvance.x);
-			if (targetScroll < mState.mScrollX)
+			if (targetScroll < mScrollX)
 				ImGui::SetScrollX(targetScroll);
 		}
-		if (pos.mColumn >= mState.mLastVisibleColumn)
+		if (pos.mColumn >= mLastVisibleColumn)
 		{
-			float targetScroll = std::max(0.0f, mTextStart + (pos.mColumn + 0.5f) * mCharAdvance.x - mState.mContentWidth);
-			if (targetScroll > mState.mScrollX)
+			float targetScroll = std::max(0.0f, mTextStart + (pos.mColumn + 0.5f) * mCharAdvance.x - mContentWidth);
+			if (targetScroll > mScrollX)
 				ImGui::SetScrollX(targetScroll);
 		}
 		mEnsureCursorVisible = -1;
@@ -2425,7 +2425,7 @@ void TextEditor::Render(bool aParentIsFocused)
 
 void TextEditor::OnCursorPositionChanged()
 {
-	if (mState.mDraggingSelection)
+	if (mDraggingSelection)
 		return;
 
 	mState.SortCursorsFromTopToBottom();
