@@ -239,29 +239,9 @@ private:
 		int mLastAddedCursor = 0;
 		bool mCursorPositionChanged = false;
 		std::vector<Cursor> mCursors = { {{0,0}} };
-		void AddCursor()
-		{
-			// vector is never resized to smaller size, mCurrentCursor points to last available cursor in vector
-			mCurrentCursor++;
-			mCursors.resize(mCurrentCursor + 1);
-			mLastAddedCursor = mCurrentCursor;
-		}
-		int GetLastAddedCursorIndex()
-		{
-			return mLastAddedCursor > mCurrentCursor ? 0 : mLastAddedCursor;
-		}
-		void SortCursorsFromTopToBottom()
-		{
-			Coordinates lastAddedCursorPos = mCursors[GetLastAddedCursorIndex()].mInteractiveEnd;
-			std::sort(mCursors.begin(), mCursors.begin() + (mCurrentCursor + 1), [](const Cursor& a, const Cursor& b) -> bool
-				{
-					return a.GetSelectionStart() < b.GetSelectionStart();
-				});
-			// update last added cursor index to be valid after sort
-			for (int c = mCurrentCursor; c > -1; c--)
-				if (mCursors[c].mInteractiveEnd == lastAddedCursorPos)
-					mLastAddedCursor = c;
-		}
+		void AddCursor();
+		int GetLastAddedCursorIndex();
+		void SortCursorsFromTopToBottom();
 	};
 
 	struct Identifier
@@ -345,16 +325,15 @@ private:
 		EditorState mAfter;
 	};
 
+	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
 	std::string GetClipboardText() const;
 	std::string GetSelectedText(int aCursor = -1) const;
-	std::string GetCurrentLineText()const;
-
-	void OnCursorPositionChanged();
 
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1, bool aClearSelection = true);
 
-	void InsertText(const std::string& aValue, int aCursor = -1);
-	void InsertText(const char* aValue, int aCursor = -1);
+	int InsertTextAt(Coordinates& aWhere, const char* aValue);
+	void InsertTextAtCursor(const std::string& aValue, int aCursor = -1);
+	void InsertTextAtCursor(const char* aValue, int aCursor = -1);
 
 	enum class MoveDirection { Right = 0, Left = 1, Up = 2, Down = 3 };
 	bool Move(int& aLine, int& aCharIndex, bool aLeft = false, bool aLockLine = false) const;
@@ -368,28 +347,28 @@ private:
 	void MoveBottom(bool aSelect = false);
 	void MoveHome(bool aSelect = false);
 	void MoveEnd(bool aSelect = false);
+	void EnterCharacter(ImWchar aChar, bool aShift);
+	void Backspace(bool aWordMode = false);
+	void Delete(bool aWordMode = false, const EditorState* aEditorState = nullptr);
 
 	void SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor = -1);
 	void SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor = -1);
 
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
 	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
+	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
+	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
+	void ChangeCurrentLinesIndentation(bool aIncrease);
+	void MoveUpCurrentLines();
+	void MoveDownCurrentLines();
+	void ToggleLineComment();
+	void RemoveCurrentLines();
 
-	void MergeCursorsIfPossible();
-
-
-	void Colorize(int aFromLine = 0, int aCount = -1);
-	void ColorizeRange(int aFromLine = 0, int aToLine = 0);
-	void ColorizeInternal();
 	float TextDistanceToLineStart(const Coordinates& aFrom) const;
 	void EnsureCursorVisible(int aCursor = -1);
-	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
-	Coordinates GetActualCursorCoordinates(int aCursor = -1) const;
+
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
-	void Delete(bool aWordMode = false, const EditorState* aEditorState = nullptr);
-	void DeleteRange(const Coordinates& aStart, const Coordinates& aEnd);
-	int InsertTextAt(Coordinates& aWhere, const char* aValue);
-	void AddUndo(UndoRecord& aValue);
+	Coordinates GetActualCursorCoordinates(int aCursor = -1) const;
 	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool aInsertionMode = false, bool* isOverLineNumber = nullptr) const;
 	Coordinates FindWordStart(const Coordinates& aFrom) const;
 	Coordinates FindWordEnd(const Coordinates& aFrom) const;
@@ -401,31 +380,27 @@ private:
 	Line& InsertLine(int aIndex);
 	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
 	void RemoveLines(int aStart, int aEnd);
-	
-	void RemoveCurrentLines();
-	void OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int aCharCount, bool aDeleted);
+	void DeleteRange(const Coordinates& aStart, const Coordinates& aEnd);
+	void DeleteSelection(int aCursor = -1);
+
 	void RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar = -1);
 	void AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSourceStart, Line::iterator aSourceEnd);
 	void AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph);
-
-	void ChangeCurrentLinesIndentation(bool aIncrease);
-	void MoveUpCurrentLines();
-	void MoveDownCurrentLines();
-	void ToggleLineComment();
-
-	void EnterCharacter(ImWchar aChar, bool aShift);
-	void Backspace(bool aWordMode = false);
-	void DeleteSelection(int aCursor = -1);
-	std::string GetWordUnderCursor() const;
-	std::string GetWordAt(const Coordinates& aCoords) const;
 	ImU32 GetGlyphColor(const Glyph& aGlyph) const;
 
 	void HandleKeyboardInputs(bool aParentIsFocused = false);
 	void HandleMouseInputs();
 	void Render(bool aParentIsFocused = false);
 
-	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
-	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
+	void OnCursorPositionChanged();
+	void OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int aCharCount, bool aDeleted);
+	void MergeCursorsIfPossible();
+
+	void AddUndo(UndoRecord& aValue);
+
+	void Colorize(int aFromLine = 0, int aCount = -1);
+	void ColorizeRange(int aFromLine = 0, int aToLine = 0);
+	void ColorizeInternal();
 
 	std::vector<Line> mLines;
 	EditorState mState;
@@ -458,12 +433,11 @@ private:
 	RegexList mRegexList;
 	std::string mLineBuffer;
 
-	static const Palette& GetMarianaPalette();
 	static const Palette& GetDarkPalette();
+	static const Palette& GetMarianaPalette();
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
 	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
 	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
-	static bool IsGlyphWordChar(const Glyph& aGlyph);
 	static PaletteId defaultPalette;
 };
