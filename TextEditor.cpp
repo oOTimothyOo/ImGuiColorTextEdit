@@ -1655,7 +1655,8 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 	if (aFrom.mLine >= (int)mLines.size())
 		return aFrom;
 
-	auto& line = mLines[aFrom.mLine];
+	int lineIndex = aFrom.mLine;
+	auto& line = mLines[lineIndex];
 	int charIndex = GetCharacterIndexL(aFrom);
 
 	if (charIndex >= (int)line.size())
@@ -1664,7 +1665,7 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 	bool initialIsWordChar = CharIsWordChar(line[charIndex].mChar);
 	bool initialIsSpace = isspace(line[charIndex].mChar);
 	char initialChar = line[charIndex].mChar;
-	while (Move((int)aFrom.mLine, charIndex, true, true))
+	while (Move(lineIndex, charIndex, true, true))
 	{
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
 		bool isSpace = isspace(line[charIndex].mChar);
@@ -1672,7 +1673,7 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 			initialIsWordChar && !isWordChar ||
 			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
 		{
-			Move((int)aFrom.mLine, charIndex, false, true); // one step to the right
+			Move(lineIndex, charIndex, false, true); // one step to the right
 			break;
 		}
 	}
@@ -1684,7 +1685,8 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	if (aFrom.mLine >= (int)mLines.size())
 		return aFrom;
 
-	auto& line = mLines[aFrom.mLine];
+	int lineIndex = aFrom.mLine;
+	auto& line = mLines[lineIndex];
 	auto charIndex = GetCharacterIndexL(aFrom);
 
 	if (charIndex >= (int)line.size())
@@ -1693,7 +1695,7 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	bool initialIsWordChar = CharIsWordChar(line[charIndex].mChar);
 	bool initialIsSpace = isspace(line[charIndex].mChar);
 	char initialChar = line[charIndex].mChar;
-	while (Move((int)aFrom.mLine, charIndex, false, true))
+	while (Move(lineIndex, charIndex, false, true))
 	{
 		if (charIndex == line.size())
 			break;
@@ -1704,7 +1706,7 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
 			break;
 	}
-	return { aFrom.mLine, GetCharacterColumn(aFrom.mLine, charIndex) };
+	return { lineIndex, GetCharacterColumn(aFrom.mLine, charIndex) };
 }
 
 int TextEditor::GetCharacterIndexL(const Coordinates& aCoordinates) const
