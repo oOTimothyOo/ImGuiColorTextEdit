@@ -2386,8 +2386,7 @@ void TextEditor::Render(bool aParentIsFocused)
 				else
 				{
 					auto l = UTF8CharLength(glyph.mChar);
-					Coordinates glyphCoords = Coordinates{ lineNo, GetCharacterColumn(lineNo, i) };
-					if (mCursorOnBracket && l == 1 && mMatchingBracketCoords == glyphCoords)
+					if (mCursorOnBracket && l == 1 && mMatchingBracketCoords == Coordinates{ lineNo, GetCharacterColumn(lineNo, i) })
 					{
 						ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, mLineBuffer.c_str(), nullptr, nullptr);
 						ImVec2 topLeft = { textScreenPos.x + bufferOffset.x + textSize.x, textScreenPos.y + bufferOffset.y + fontHeight + 1.0f};
