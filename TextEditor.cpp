@@ -2349,10 +2349,22 @@ void TextEditor::Render(bool aParentIsFocused)
 						const auto x2 = textScreenPos.x + bufferOffset.x - 1.0f;
 						const auto y = textScreenPos.y + bufferOffset.y + s * 0.5f;
 
-						p1 = ImVec2(x1, y);
-						p2 = ImVec2(x2, y);
-						p3 = ImVec2(x2 - s * 0.2f, y - s * 0.2f);
-						p4 = ImVec2(x2 - s * 0.2f, y + s * 0.2f);
+						if (mShortTabs)
+						{
+							const auto x2 = textScreenPos.x + oldX + mCharAdvance.x - 1.0f;
+							p1 = ImVec2(x1, y);
+							p2 = ImVec2(x2, y);
+							p3 = ImVec2(x2 - s * 0.16f, y - s * 0.16f);
+							p4 = ImVec2(x2 - s * 0.16f, y + s * 0.16f);
+						}
+						else
+						{
+							const auto x2 = textScreenPos.x + bufferOffset.x - 1.0f;
+							p1 = ImVec2(x1, y);
+							p2 = ImVec2(x2, y);
+							p3 = ImVec2(x2 - s * 0.2f, y - s * 0.2f);
+							p4 = ImVec2(x2 - s * 0.2f, y + s * 0.2f);
+						}
 
 						drawList->AddLine(p1, p2, mPalette[(int)PaletteIndex::ControlCharacter]);
 						drawList->AddLine(p2, p3, mPalette[(int)PaletteIndex::ControlCharacter]);

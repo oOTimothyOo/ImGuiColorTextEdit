@@ -40,6 +40,8 @@ public:
 	inline bool IsShowWhitespacesEnabled() const { return mShowWhitespaces; }
 	inline void SetShowLineNumbersEnabled(bool aValue) { mShowLineNumbers = aValue; }
 	inline bool IsShowLineNumbersEnabled() const { return mShowLineNumbers; }
+	inline void SetShortTabsEnabled(bool aValue) { mShortTabs = aValue; }
+	inline bool IsShortTabsEnabled() const { return mShortTabs; }
 	inline int GetLineCount() const { return mLines.size(); }
 	inline bool IsOverwriteEnabled() const { return mOverwrite; }
 	void SetPalette(PaletteId aValue);
@@ -402,6 +404,7 @@ private:
 	bool mAutoIndent = true;
 	bool mShowWhitespaces = true;
 	bool mShowLineNumbers = true;
+	bool mShortTabs = false;
 
 	int mEnsureCursorVisible = -1;
 	bool mScrollToTop = false;
