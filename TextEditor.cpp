@@ -2205,9 +2205,13 @@ void TextEditor::Render(bool aParentIsFocused)
 	auto drawList = ImGui::GetWindowDrawList();
 
 	// Deduce mTextStart by evaluating mLines size (global lineMax) plus two spaces as text width
-	char buf[16];
-	snprintf(buf, 16, " %d ", mLines.size());
-	mTextStart = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf, nullptr, nullptr).x + mLeftMargin;
+	mTextStart = mLeftMargin;
+	static char lineNumberBuffer[16];
+	if (mShowLineNumbers)
+	{
+		snprintf(lineNumberBuffer, 16, " %d ", mLines.size());
+		mTextStart += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineNumberBuffer, nullptr, nullptr).x;
+	}
 
 	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
 	mScrollX = ImGui::GetScrollX();
@@ -2262,10 +2266,12 @@ void TextEditor::Render(bool aParentIsFocused)
 			}
 
 			// Draw line number (right aligned)
-			snprintf(buf, 16, "%d  ", lineNo + 1);
-
-			auto lineNoWidth = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf, nullptr, nullptr).x;
-			drawList->AddText(ImVec2(lineStartScreenPos.x + mTextStart - lineNoWidth, lineStartScreenPos.y), mPalette[(int)PaletteIndex::LineNumber], buf);
+			if (mShowLineNumbers)
+			{
+				snprintf(lineNumberBuffer, 16, "%d  ", lineNo + 1);
+				float lineNoWidth = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineNumberBuffer, nullptr, nullptr).x;
+				drawList->AddText(ImVec2(lineStartScreenPos.x + mTextStart - lineNoWidth, lineStartScreenPos.y), mPalette[(int)PaletteIndex::LineNumber], lineNumberBuffer);
+			}
 
 			std::vector<Coordinates> cursorCoordsInThisLine;
 			for (int c = 0; c <= mState.mCurrentCursor; c++)
