@@ -97,7 +97,7 @@ public:
 private:
 	// ------------- Generic utils ------------- //
 
-	inline ImVec4 U32ColorToVec4(ImU32 in)
+	inline ImVec4 U32ColorToVec4(ImU32 in) const
 	{
 		float s = 1.0f / 255.0f;
 		return ImVec4(
@@ -109,6 +109,10 @@ private:
 	inline bool IsUTFSequence(char c) const
 	{
 		return (c & 0xC0) == 0x80;
+	}
+	inline int TabSizeAtColumn(int aColumn) const
+	{
+		return mTabSize - (aColumn % mTabSize);
 	}
 	template<typename T>
 	inline T Max(T a, T b) { return a > b ? a : b; }
@@ -327,6 +331,7 @@ private:
 
 	enum class MoveDirection { Right = 0, Left = 1, Up = 2, Down = 3 };
 	bool Move(int& aLine, int& aCharIndex, bool aLeft = false, bool aLockLine = false) const;
+	void MoveCharIndexAndColumn(int aLine, int& aCharIndex, int& aColumn) const;
 	void MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode = false, int aLineCount = 1) const;
 
 	void MoveUp(int aAmount = 1, bool aSelect = false);
@@ -354,7 +359,7 @@ private:
 	void ToggleLineComment();
 	void RemoveCurrentLines();
 
-	float TextDistanceToLineStart(const Coordinates& aFrom) const;
+	float TextDistanceToLineStart(const Coordinates& aFrom, bool aSanitizeCoords = true) const;
 	void EnsureCursorVisible(int aCursor = -1);
 
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
@@ -365,7 +370,8 @@ private:
 	int GetCharacterIndexL(const Coordinates& aCoordinates) const;
 	int GetCharacterIndexR(const Coordinates& aCoordinates) const;
 	int GetCharacterColumn(int aLine, int aIndex) const;
-	int GetLineMaxColumn(int aLine) const;
+	int GetFirstVisibleCharacterIndex(int aLine) const;
+	int GetLineMaxColumn(int aLine, int aLimit = -1) const;
 
 	Line& InsertLine(int aIndex);
 	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
@@ -412,7 +418,7 @@ private:
 	float mTextStart = 20.0f; // position (in pixels) where a code line starts relative to the left of the TextEditor.
 	int mLeftMargin = 10;
 	ImVec2 mCharAdvance;
-	float mLongestLineLength = 20.0f;
+	float mCurrentSpaceWidth = 20.0f;
 	float mLastClick = -1.0f;
 	int mFirstVisibleLine = 0;
 	int mLastVisibleLine = 0;
