@@ -1226,6 +1226,12 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 
 bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out)
 {
+	if (aLine > mLines.size() - 1)
+		return false;
+	int maxCharIndex = mLines[aLine].size() - 1;
+	if (aCharIndex > maxCharIndex)
+		return false;
+
 	int currentLine = aLine;
 	int currentCharIndex = aCharIndex;
 	int counter = 1;
@@ -2188,8 +2194,9 @@ void TextEditor::HandleMouseInputs()
 void TextEditor::Render(bool aParentIsFocused)
 {
 	/* Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)*/
-	const float fontSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
-	mCharAdvance = ImVec2(fontSize, ImGui::GetTextLineHeightWithSpacing() * mLineSpacing);
+	const float fontWidth = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
+	const float fontHeight = ImGui::GetTextLineHeightWithSpacing();
+	mCharAdvance = ImVec2(fontWidth, fontHeight * mLineSpacing);
 
 	assert(mLineBuffer.empty());
 
@@ -2290,24 +2297,11 @@ void TextEditor::Render(bool aParentIsFocused)
 						ImVec2 cstart(textScreenPos.x + cx, lineStartScreenPos.y);
 						ImVec2 cend(textScreenPos.x + cx + width, lineStartScreenPos.y + mCharAdvance.y);
 						drawList->AddRectFilled(cstart, cend, mPalette[(int)PaletteIndex::Cursor]);
-
-						if (cindex < (int)line.size())
+						if (mCursorOnBracket)
 						{
-							Coordinates matchingBracket;
-							if (FindMatchingBracket(lineNo, cindex, matchingBracket))
-							{
-								ImVec2 topLeft = { cstart.x, cend.y + 1.0f };
-								ImVec2 bottomRight = { cstart.x + mCharAdvance.x, cend.y + 2.0f };
-
-								drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
-								ImVec2 disp = {
-									(cursorCoords.mColumn - matchingBracket.mColumn) * mCharAdvance.x,
-									(cursorCoords.mLine - matchingBracket.mLine) * mCharAdvance.y
-								};
-								topLeft = { topLeft.x - disp.x, topLeft.y - disp.y };
-								bottomRight = { bottomRight.x - disp.x, bottomRight.y - disp.y };
-								drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
-							}
+							ImVec2 topLeft = { cstart.x, lineStartScreenPos.y + fontHeight + 1.0f };
+							ImVec2 bottomRight = { topLeft.x + mCharAdvance.x, topLeft.y + 1.0f };
+							drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
 						}
 					}
 				}
@@ -2372,6 +2366,14 @@ void TextEditor::Render(bool aParentIsFocused)
 				else
 				{
 					auto l = UTF8CharLength(glyph.mChar);
+					Coordinates glyphCoords = Coordinates{ lineNo, GetCharacterColumn(lineNo, i) };
+					if (mCursorOnBracket && l == 1 && mMatchingBracketCoords == glyphCoords)
+					{
+						ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, mLineBuffer.c_str(), nullptr, nullptr);
+						ImVec2 topLeft = { textScreenPos.x + bufferOffset.x + textSize.x, textScreenPos.y + bufferOffset.y + fontHeight + 1.0f};
+						ImVec2 bottomRight = { topLeft.x + mCharAdvance.x, topLeft.y + 1.0f };
+						drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
+					}
 					while (l-- > 0)
 						mLineBuffer.push_back(line[i++].mChar);
 				}
@@ -2427,11 +2429,17 @@ void TextEditor::Render(bool aParentIsFocused)
 
 void TextEditor::OnCursorPositionChanged()
 {
-	if (mDraggingSelection)
-		return;
+	if (mState.mCurrentCursor == 0 && !mState.mCursors[0].HasSelection()) // only one cursor without selection
+		mCursorOnBracket = FindMatchingBracket(mState.mCursors[0].mInteractiveEnd.mLine,
+			GetCharacterIndexR(mState.mCursors[0].mInteractiveEnd), mMatchingBracketCoords);
+	else
+		mCursorOnBracket = false;
 
-	mState.SortCursorsFromTopToBottom();
-	MergeCursorsIfPossible();
+	if (!mDraggingSelection)
+	{
+		mState.SortCursorsFromTopToBottom();
+		MergeCursorsIfPossible();
+	}
 }
 
 void TextEditor::OnLineChanged(bool aBeforeChange, int aLine, int aColumn, int aCharCount, bool aDeleted) // adjusts cursor position when other cursor writes/deletes in the same line

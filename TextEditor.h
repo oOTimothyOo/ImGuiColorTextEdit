@@ -422,6 +422,8 @@ private:
 	bool mDraggingSelection = false;
 	ImVec2 mLastMousePos;
 	bool mCursorPositionChanged = false;
+	bool mCursorOnBracket = false;
+	Coordinates mMatchingBracketCoords;
 
 	int mColorRangeMin = 0;
 	int mColorRangeMax = 0;
