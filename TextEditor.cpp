@@ -2235,13 +2235,13 @@ void TextEditor::Render(bool aParentIsFocused)
 	mContentHeight = ImGui::GetWindowHeight();
 	mContentWidth = ImGui::GetWindowWidth();
 
-	mVisibleLineCount = (int)ceil(mContentHeight / mCharAdvance.y);
-	mFirstVisibleLine = (int)(mScrollY / mCharAdvance.y);
-	mLastVisibleLine = (int)((mContentHeight + mScrollY) / mCharAdvance.y);
+	mVisibleLineCount = Max((int)ceil(mContentHeight / mCharAdvance.y), 0);
+	mFirstVisibleLine = Max((int)(mScrollY / mCharAdvance.y), 0);
+	mLastVisibleLine = Max((int)((mContentHeight + mScrollY) / mCharAdvance.y), 0);
 
-	mVisibleColumnCount = (int)ceil((mContentWidth - std::max(mTextStart - mScrollX, 0.0f)) / mCharAdvance.x);
-	mFirstVisibleColumn = (int)(std::max(mScrollX - mTextStart, 0.0f) / mCharAdvance.x);
-	mLastVisibleColumn = (int)((mContentWidth + mScrollX - mTextStart) / mCharAdvance.x);
+	mVisibleColumnCount = Max((int)ceil((mContentWidth - std::max(mTextStart - mScrollX, 0.0f)) / mCharAdvance.x), 0);
+	mFirstVisibleColumn = Max((int)(std::max(mScrollX - mTextStart, 0.0f) / mCharAdvance.x), 0);
+	mLastVisibleColumn = Max((int)((mContentWidth + mScrollX - mTextStart) / mCharAdvance.x), 0);
 
 	if (!mLines.empty())
 	{
