@@ -54,6 +54,9 @@ void TextEditor::SetLanguageDefinition(LanguageDefinitionId aValue)
 	mLanguageDefinitionId = aValue;
 	switch (mLanguageDefinitionId)
 	{
+	case LanguageDefinitionId::None:
+		mLanguageDefinition = nullptr;
+		return;
 	case LanguageDefinitionId::Cpp:
 		mLanguageDefinition = &(LanguageDefinition::Cpp());
 		break;

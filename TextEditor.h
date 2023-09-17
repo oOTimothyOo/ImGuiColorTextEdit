@@ -22,10 +22,7 @@ public:
 
 	enum class PaletteId
 	{
-		Dark,
-		Light,
-		Mariana,
-		RetroBlue
+		Dark, Light, Mariana, RetroBlue
 	};
 	enum class LanguageDefinitionId
 	{
