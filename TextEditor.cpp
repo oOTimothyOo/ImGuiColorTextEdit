@@ -6,6 +6,7 @@
 #include "TextEditor.h"
 
 #define IMGUI_SCROLLBAR_WIDTH 14.0f
+#define POS_TO_COORDS_COLUMN_OFFSET 0.33f
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h" // for imGui::GetCurrentWindow()
 
@@ -1631,6 +1632,8 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 		else
 			out.mColumn = columnToRight;
 	}
+	else
+		out.mColumn = Max(0, (int)floor((local.x - mTextStart + POS_TO_COORDS_COLUMN_OFFSET * mCharAdvance.x) / mCharAdvance.x));
 	return SanitizeCoordinates(out);
 }
 
