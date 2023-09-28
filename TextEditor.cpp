@@ -2092,7 +2092,10 @@ void TextEditor::HandleMouseInputs()
 		{
 			auto doubleClick = ImGui::IsMouseDoubleClicked(0);
 			auto t = ImGui::GetTime();
-			auto tripleClick = click && !doubleClick && (mLastClick != -1.0f && (t - mLastClick) < io.MouseDoubleClickTime);
+			auto tripleClick = click && !doubleClick &&
+				(mLastClickTime != -1.0f && (t - mLastClickTime) < io.MouseDoubleClickTime &&
+					Distance(io.MousePos, mLastClickPos) < 0.01f);
+
 			if (click)
 				mDraggingSelection = true;
 
@@ -2123,7 +2126,7 @@ void TextEditor::HandleMouseInputs()
 					Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
 				SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
 
-				mLastClick = -1.0f;
+				mLastClickTime = -1.0f;
 			}
 
 			/*
@@ -2140,7 +2143,8 @@ void TextEditor::HandleMouseInputs()
 				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
 				SetSelection(FindWordStart(cursorCoords), FindWordEnd(cursorCoords), mState.mCurrentCursor);
 
-				mLastClick = (float)ImGui::GetTime();
+				mLastClickTime = (float)ImGui::GetTime();
+				mLastClickPos = io.MousePos;
 			}
 
 			/*
@@ -2165,7 +2169,8 @@ void TextEditor::HandleMouseInputs()
 				else
 					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
 
-				mLastClick = (float)ImGui::GetTime();
+				mLastClickTime = (float)ImGui::GetTime();
+				mLastClickPos = io.MousePos;
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
