@@ -1646,8 +1646,10 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 	auto& line = mLines[lineIndex];
 	int charIndex = GetCharacterIndexL(aFrom);
 
-	if (charIndex >= (int)line.size())
+	if (charIndex > (int)line.size() || line.size() == 0)
 		return aFrom;
+	if (charIndex == (int)line.size())
+		charIndex--;
 
 	bool initialIsWordChar = CharIsWordChar(line[charIndex].mChar);
 	bool initialIsSpace = isspace(line[charIndex].mChar);
