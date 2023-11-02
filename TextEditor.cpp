@@ -1343,7 +1343,6 @@ void TextEditor::ChangeCurrentLinesIndentation(bool aIncrease)
 		}
 	}
 
-	EnsureCursorVisible();
 	if (u.mOperations.size() > 0)
 		AddUndo(u);
 }
