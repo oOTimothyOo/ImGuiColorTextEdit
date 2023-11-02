@@ -2239,24 +2239,24 @@ void TextEditor::Render(bool aParentIsFocused)
 			// Draw selection for the current line
 			for (int c = 0; c <= mState.mCurrentCursor; c++)
 			{
-				float sstart = -1.0f;
-				float ssend = -1.0f;
+				float rectStart = -1.0f;
+				float rectEnd = -1.0f;
+				Coordinates cursorSelectionStart = mState.mCursors[c].GetSelectionStart();
+				Coordinates cursorSelectionEnd = mState.mCursors[c].GetSelectionEnd();
+				assert(cursorSelectionStart <= cursorSelectionEnd);
 
-				assert(mState.mCursors[c].GetSelectionStart() <= mState.mCursors[c].GetSelectionEnd());
-				if (mState.mCursors[c].GetSelectionStart() <= lineEndCoord)
-					sstart = mState.mCursors[c].GetSelectionStart() > lineStartCoord ? TextDistanceToLineStart(mState.mCursors[c].GetSelectionStart()) : 0.0f;
-				if (mState.mCursors[c].GetSelectionEnd() > lineStartCoord)
-					ssend = TextDistanceToLineStart(mState.mCursors[c].GetSelectionEnd() < lineEndCoord ? mState.mCursors[c].GetSelectionEnd() : lineEndCoord);
+				if (cursorSelectionStart <= lineEndCoord)
+					rectStart = cursorSelectionStart > lineStartCoord ? TextDistanceToLineStart(cursorSelectionStart) : 0.0f;
+				if (cursorSelectionEnd > lineStartCoord)
+					rectEnd = TextDistanceToLineStart(cursorSelectionEnd < lineEndCoord ? cursorSelectionEnd : lineEndCoord);
+				if (cursorSelectionEnd.mLine > lineNo || cursorSelectionEnd.mLine == lineNo && cursorSelectionEnd > lineEndCoord)
+					rectEnd += mCharAdvance.x;
 
-				if (mState.mCursors[c].GetSelectionEnd().mLine > lineNo)
-					ssend += mCharAdvance.x;
-
-				if (sstart != -1 && ssend != -1 && sstart < ssend)
-				{
-					ImVec2 vstart(lineStartScreenPos.x + mTextStart + sstart, lineStartScreenPos.y);
-					ImVec2 vend(lineStartScreenPos.x + mTextStart + ssend, lineStartScreenPos.y + mCharAdvance.y);
-					drawList->AddRectFilled(vstart, vend, mPalette[(int)PaletteIndex::Selection]);
-				}
+				if (rectStart != -1 && rectEnd != -1 && rectStart < rectEnd)
+					drawList->AddRectFilled(
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectStart, lineStartScreenPos.y },
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
+						mPalette[(int)PaletteIndex::Selection]);
 			}
 
 			// Draw line number (right aligned)
