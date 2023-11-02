@@ -359,10 +359,10 @@ private:
 	void RemoveCurrentLines();
 
 	float TextDistanceToLineStart(const Coordinates& aFrom, bool aSanitizeCoords = true) const;
-	void EnsureCursorVisible(int aCursor = -1);
+	void EnsureCursorVisible(int aCursor = -1, bool aStartToo = false);
 
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
-	Coordinates GetActualCursorCoordinates(int aCursor = -1) const;
+	Coordinates GetActualCursorCoordinates(int aCursor = -1, bool aStart = false) const;
 	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool aInsertionMode = false, bool* isOverLineNumber = nullptr) const;
 	Coordinates FindWordStart(const Coordinates& aFrom) const;
 	Coordinates FindWordEnd(const Coordinates& aFrom) const;
@@ -385,6 +385,7 @@ private:
 
 	void HandleKeyboardInputs(bool aParentIsFocused = false);
 	void HandleMouseInputs();
+	void UpdateViewVariables(float aScrollX, float aScrollY);
 	void Render(bool aParentIsFocused = false);
 
 	void OnCursorPositionChanged();
@@ -412,6 +413,7 @@ private:
 	bool mShortTabs = false;
 
 	int mEnsureCursorVisible = -1;
+	bool mEnsureCursorVisibleStartToo = false;
 	bool mScrollToTop = false;
 
 	float mTextStart = 20.0f; // position (in pixels) where a code line starts relative to the left of the TextEditor.
