@@ -28,6 +28,10 @@ public:
 	{
 		None, Cpp, C, Cs, Python, Lua, Json, Sql, AngelScript, Glsl, Hlsl
 	};
+	enum class SetViewAtLineMode
+	{
+		FirstVisibleLine, Centered, LastVisibleLine
+	};
 
 	inline void SetReadOnlyEnabled(bool aValue) { mReadOnly = aValue; }
 	inline bool IsReadOnlyEnabled() const { return mReadOnly; }
@@ -70,6 +74,9 @@ public:
 		outLine = coords.mLine;
 		outColumn = coords.mColumn;
 	}
+	int GetFirstVisibleLine();
+	int GetLastVisibleLine();
+	void SetViewAtLine(int aLine, SetViewAtLineMode aMode);
 
 	void Copy();
 	void Cut();
@@ -412,6 +419,8 @@ private:
 	bool mShowLineNumbers = true;
 	bool mShortTabs = false;
 
+	int mSetViewAtLine = -1;
+	SetViewAtLineMode mSetViewAtLineMode;
 	int mEnsureCursorVisible = -1;
 	bool mEnsureCursorVisibleStartToo = false;
 	bool mScrollToTop = false;
