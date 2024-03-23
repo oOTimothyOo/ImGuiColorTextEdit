@@ -351,9 +351,10 @@ void TextEditor::SetText(const std::string& aText)
 
 std::string TextEditor::GetText(const Coordinates& aStart, const Coordinates& aEnd) const
 {
-	assert(aEnd > aStart);
-	std::string result;
+	if (aEnd <= aStart)
+		return "";
 
+	std::string result;
 	auto lstart = aStart.mLine;
 	auto lend = aEnd.mLine;
 	auto istart = GetCharacterIndexR(aStart);
