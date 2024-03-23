@@ -457,7 +457,6 @@ private:
 	LanguageDefinitionId mLanguageDefinitionId;
 	const LanguageDefinition* mLanguageDefinition = nullptr;
 	RegexList mRegexList;
-	std::string mLineBuffer;
 
 	inline bool IsHorizontalScrollbarVisible() const { return mCurrentSpaceWidth > mContentWidth; }
 	inline bool IsVerticalScrollbarVisible() const { return mCurrentSpaceHeight > mContentHeight; }
