@@ -258,6 +258,9 @@ void TextEditor::Paste()
 	if (mReadOnly)
 		return;
 
+	if (ImGui::GetClipboardText() == nullptr)
+		return; // something other than text in the clipboard
+
 	// check if we should do multicursor paste
 	std::string clipText = ImGui::GetClipboardText();
 	bool canPasteToMultipleCursors = false;
