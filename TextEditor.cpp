@@ -300,12 +300,12 @@ void TextEditor::Paste()
 			if (canPasteToMultipleCursors)
 			{
 				std::string clipSubText = clipText.substr(clipTextLines[c].first, clipTextLines[c].second - clipTextLines[c].first);
-				InsertTextAtCursor(clipSubText, c);
+				InsertTextAtCursor(clipSubText.c_str(), c);
 				u.mOperations.push_back({ clipSubText, start, GetActualCursorCoordinates(c), UndoOperationType::Add });
 			}
 			else
 			{
-				InsertTextAtCursor(clipText, c);
+				InsertTextAtCursor(clipText.c_str(), c);
 				u.mOperations.push_back({ clipText, start, GetActualCursorCoordinates(c), UndoOperationType::Add });
 			}
 		}
@@ -730,11 +730,6 @@ int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue
 	}
 
 	return totalLines;
-}
-
-void TextEditor::InsertTextAtCursor(const std::string& aValue, int aCursor)
-{
-	InsertTextAtCursor(aValue.c_str(), aCursor);
 }
 
 void TextEditor::InsertTextAtCursor(const char* aValue, int aCursor)
