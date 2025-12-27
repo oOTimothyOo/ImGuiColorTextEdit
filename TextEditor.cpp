@@ -275,16 +275,16 @@ void TextEditor::Paste()
 	if (mState.mCurrentCursor > 0)
 	{
 		clipTextLines.push_back({ 0,0 });
-		for (int i = 0; i < clipText.length(); i++)
+		for (size_t i = 0; i < clipText.length(); i++)
 		{
 			if (clipText[i] == '\n')
 			{
-				clipTextLines.back().second = i;
-				clipTextLines.push_back({ i + 1, 0 });
+				clipTextLines.back().second = static_cast<int>(i);
+				clipTextLines.push_back({ static_cast<int>(i) + 1, 0 });
 			}
 		}
-		clipTextLines.back().second = clipText.length();
-		canPasteToMultipleCursors = clipTextLines.size() == mState.mCurrentCursor + 1;
+		clipTextLines.back().second = static_cast<int>(clipText.length());
+		canPasteToMultipleCursors = static_cast<int>(clipTextLines.size()) == mState.mCurrentCursor + 1;
 	}
 
 	if (clipText.length() > 0)
@@ -504,9 +504,9 @@ static inline bool CharIsWordChar(char ch)
 {
 	int sizeInBytes = UTF8CharLength(ch);
 	return sizeInBytes > 1 ||
-		ch >= 'a' && ch <= 'z' ||
-		ch >= 'A' && ch <= 'Z' ||
-		ch >= '0' && ch <= '9' ||
+		(ch >= 'a' && ch <= 'z') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= '0' && ch <= '9') ||
 		ch == '_';
 }
 
@@ -586,7 +586,7 @@ void TextEditor::UndoRecord::Undo(TextEditor* aEditor)
 
 void TextEditor::UndoRecord::Redo(TextEditor* aEditor)
 {
-	for (int i = 0; i < mOperations.size(); i++)
+	for (size_t i = 0; i < mOperations.size(); i++)
 	{
 		const UndoOperation& operation = mOperations[i];
 		if (!operation.mText.empty())
@@ -627,7 +627,7 @@ std::string TextEditor::GetText(const Coordinates& aStart, const Coordinates& aE
 	auto iend = GetCharacterIndexR(aEnd);
 	size_t s = 0;
 
-	for (size_t i = lstart; i < lend; i++)
+	for (int i = lstart; i < lend; i++)
 		s += mLines[i].size();
 
 	result.reserve(s + s / 8);
@@ -677,6 +677,63 @@ std::string TextEditor::GetSelectedText(int aCursor) const
 	return GetText(mState.mCursors[aCursor].GetSelectionStart(), mState.mCursors[aCursor].GetSelectionEnd());
 }
 
+void TextEditor::SetHighlights(const std::vector<Highlight>& aHighlights)
+{
+	mHighlights = aHighlights;
+}
+
+void TextEditor::ClearHighlights()
+{
+	mHighlights.clear();
+}
+
+bool TextEditor::ReplaceRange(int aStartLine, int aStartChar, int aEndLine, int aEndChar, const char* aText, int aCursor)
+{
+	if (mReadOnly || mLines.empty())
+		return false;
+
+	if (aCursor == -1)
+		aCursor = mState.mCurrentCursor;
+
+	if (aText == nullptr)
+		aText = "";
+
+	UndoRecord u;
+	u.mBefore = mState;
+
+	SetSelection(aStartLine, aStartChar, aEndLine, aEndChar, aCursor);
+	Coordinates selectionStart = mState.mCursors[aCursor].GetSelectionStart();
+	Coordinates selectionEnd = mState.mCursors[aCursor].GetSelectionEnd();
+
+	if (selectionEnd > selectionStart)
+	{
+		u.mOperations.push_back({ GetText(selectionStart, selectionEnd), selectionStart, selectionEnd, UndoOperationType::Delete });
+		DeleteSelection(aCursor);
+	}
+
+	Coordinates insertStart = GetSanitizedCursorCoordinates(aCursor);
+	if (aText[0] != '\0')
+	{
+		InsertTextAtCursor(aText, aCursor);
+		Coordinates insertEnd = GetSanitizedCursorCoordinates(aCursor);
+		u.mOperations.push_back({ aText, insertStart, insertEnd, UndoOperationType::Add });
+	}
+
+	u.mAfter = mState;
+	AddUndo(u);
+	return true;
+}
+
+void TextEditor::SetUnderlines(const std::vector<Underline>& aUnderlines)
+{
+	mUnderlines = aUnderlines;
+}
+
+void TextEditor::ClearUnderlines()
+{
+	mUnderlines.clear();
+}
+
 void TextEditor::SetCursorPosition(const Coordinates& aPosition, int aCursor, bool aClearSelection)
 {
 	if (aCursor == -1)
@@ -711,9 +768,8 @@ int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue
 		{
 			if (cindex < (int)mLines[aWhere.mLine].size())
 			{
-				auto& newLine = InsertLine(aWhere.mLine + 1);
-				auto& line = mLines[aWhere.mLine];
-				AddGlyphsToLine(aWhere.mLine + 1, 0, line.begin() + cindex, line.end());
+				InsertLine(aWhere.mLine + 1);
+				AddGlyphsToLine(aWhere.mLine + 1, 0, mLines[aWhere.mLine].begin() + cindex, mLines[aWhere.mLine].end());
 				RemoveGlyphsFromLine(aWhere.mLine, cindex);
 			}
 			else
@@ -728,7 +784,6 @@ int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue
 		}
 		else
 		{
-			auto& line = mLines[aWhere.mLine];
 			auto d = UTF8CharLength(*aValue);
 			while (d-- > 0 && *aValue != '\0')
 				AddGlyphToLine(aWhere.mLine, cindex++, Glyph(*aValue++, PaletteIndex::Default));
@@ -762,7 +817,7 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft, bool aLockLine) c
 	// char index can be line.length()
 
 	// invalid line
-	if (aLine >= mLines.size())
+	if (aLine >= static_cast<int>(mLines.size()))
 		return false;
 
 	if (aLeft)
@@ -783,9 +838,9 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft, bool aLockLine) c
 	}
 	else // right
 	{
-		if (aCharIndex == mLines[aLine].size())
+		if (aCharIndex == static_cast<int>(mLines[aLine].size()))
 		{
-			if (aLockLine || aLine == mLines.size() - 1)
+			if (aLockLine || aLine == static_cast<int>(mLines.size()) - 1)
 				return false;
 			aLine++;
 			aCharIndex = 0;
@@ -801,8 +856,8 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft, bool aLockLine) c
 
 void TextEditor::MoveCharIndexAndColumn(int aLine, int& aCharIndex, int& aColumn) const
 {
-	assert(aLine < mLines.size());
-	assert(aCharIndex < mLines[aLine].size());
+	assert(aLine < static_cast<int>(mLines.size()));
+	assert(aCharIndex < static_cast<int>(mLines[aLine].size()));
 	char c = mLines[aLine][aCharIndex].mChar;
 	aCharIndex += UTF8CharLength(c);
 	if (c == '\t')
@@ -818,9 +873,9 @@ void TextEditor::MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool
 	switch (aDirection)
 	{
 	case MoveDirection::Right:
-		if (charIndex >= mLines[lineIndex].size())
+		if (charIndex >= static_cast<int>(mLines[lineIndex].size()))
 		{
-			if (lineIndex < mLines.size() - 1)
+			if (lineIndex < static_cast<int>(mLines.size()) - 1)
 			{
 				aCoords.mLine = std::max(0, std::min((int)mLines.size() - 1, lineIndex + 1));
 				aCoords.mColumn = 0;
@@ -1010,7 +1065,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 			added.mText = "";
 			added.mText += (char)aChar;
 			if (mAutoIndent)
-				for (int i = 0; i < line.size() && isascii(line[i].mChar) && isblank(line[i].mChar); ++i)
+				for (size_t i = 0; i < line.size() && isascii(line[i].mChar) && isblank(line[i].mChar); ++i)
 				{
 					newLine.push_back(line[i]);
 					added.mText += line[i].mChar;
@@ -1029,7 +1084,6 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 			if (e > 0)
 			{
 				buf[e] = '\0';
-				auto& line = mLines[coord.mLine];
 				auto cindex = GetCharacterIndexR(coord);
 
 				for (auto p = buf; *p != '\0'; p++, ++cindex)
@@ -1175,7 +1229,6 @@ void TextEditor::AddCursorForNextOccurrence(bool aCaseSensitive)
 bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive)
 {
 	assert(aTextSize > 0);
-	bool fmatches = false;
 	int fline, ifline;
 	int findex, ifindex;
 
@@ -1191,9 +1244,9 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 			int i = 0;
 			for (; i < aTextSize; i++)
 			{
-				if (currentCharIndex == mLines[fline + lineOffset].size())
+				if (currentCharIndex == static_cast<int>(mLines[fline + lineOffset].size()))
 				{
-					if (aText[i] == '\n' && fline + lineOffset + 1 < mLines.size())
+					if (aText[i] == '\n' && fline + lineOffset + 1 < static_cast<int>(mLines.size()))
 					{
 						currentCharIndex = 0;
 						lineOffset++;
@@ -1223,9 +1276,9 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 		}
 
 		// move forward
-		if (findex == mLines[fline].size()) // need to consider line breaks
+		if (findex == static_cast<int>(mLines[fline].size())) // need to consider line breaks
 		{
-			if (fline == mLines.size() - 1)
+			if (fline == static_cast<int>(mLines.size()) - 1)
 			{
 				fline = 0;
 				findex = 0;
@@ -1249,7 +1302,7 @@ bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coor
 
 bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out)
 {
-	if (aLine > mLines.size() - 1)
+	if (aLine > static_cast<int>(mLines.size()) - 1)
 		return false;
 	int maxCharIndex = mLines[aLine].size() - 1;
 	if (aCharIndex > maxCharIndex)
@@ -1264,7 +1317,7 @@ bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out
 		char openChar = CLOSE_TO_OPEN_CHAR.at(closeChar);
 		while (Move(currentLine, currentCharIndex, true))
 		{
-			if (currentCharIndex < mLines[currentLine].size())
+			if (currentCharIndex < static_cast<int>(mLines[currentLine].size()))
 			{
 				char currentChar = mLines[currentLine][currentCharIndex].mChar;
 				if (currentChar == openChar)
@@ -1287,7 +1340,7 @@ bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out
 		char closeChar = OPEN_TO_CLOSE_CHAR.at(openChar);
 		while (Move(currentLine, currentCharIndex))
 		{
-			if (currentCharIndex < mLines[currentLine].size())
+			if (currentCharIndex < static_cast<int>(mLines[currentLine].size()))
 			{
 				char currentChar = mLines[currentLine][currentCharIndex].mChar;
 				if (currentChar == closeChar)
@@ -1417,7 +1470,7 @@ void TextEditor::MoveDownCurrentLines()
 			maxLine = maxLine == -1 ? currentLine : (currentLine > maxLine ? currentLine : maxLine);
 		}
 	}
-	if (maxLine == mLines.size() - 1) // can't move down anymore
+	if (maxLine == static_cast<int>(mLines.size()) - 1) // can't move down anymore
 		return;
 
 	Coordinates start = { minLine, 0 };
@@ -1460,11 +1513,11 @@ void TextEditor::ToggleLineComment()
 				continue;
 			affectedLines.insert(currentLine);
 			int currentIndex = 0;
-			while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
-			if (currentIndex == mLines[currentLine].size())
+			while (currentIndex < static_cast<int>(mLines[currentLine].size()) && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
+			if (currentIndex == static_cast<int>(mLines[currentLine].size()))
 				continue;
-			int i = 0;
-			while (i < commentString.length() && currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
+			size_t i = 0;
+			while (i < commentString.length() && currentIndex + static_cast<int>(i) < static_cast<int>(mLines[currentLine].size()) && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
 			bool matched = i == commentString.length();
 			shouldAddComment |= !matched;
 		}
@@ -1486,18 +1539,18 @@ void TextEditor::ToggleLineComment()
 		for (int currentLine : affectedLines) // order doesn't matter as changes are not multiline
 		{
 			int currentIndex = 0;
-			while (currentIndex < mLines[currentLine].size() && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
-			if (currentIndex == mLines[currentLine].size())
+			while (currentIndex < static_cast<int>(mLines[currentLine].size()) && (mLines[currentLine][currentIndex].mChar == ' ' || mLines[currentLine][currentIndex].mChar == '\t')) currentIndex++;
+			if (currentIndex == static_cast<int>(mLines[currentLine].size()))
 				continue;
-			int i = 0;
-			while (i < commentString.length() && currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
+			size_t i = 0;
+			while (i < commentString.length() && currentIndex + static_cast<int>(i) < static_cast<int>(mLines[currentLine].size()) && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
 			bool matched = i == commentString.length();
 			assert(matched);
-			if (currentIndex + i < mLines[currentLine].size() && mLines[currentLine][currentIndex + i].mChar == ' ')
+			if (currentIndex + static_cast<int>(i) < static_cast<int>(mLines[currentLine].size()) && mLines[currentLine][currentIndex + i].mChar == ' ')
 				i++;
 
 			Coordinates start = { currentLine, GetCharacterColumn(currentLine, currentIndex) };
-			Coordinates end = { currentLine, GetCharacterColumn(currentLine, currentIndex + i) };
+			Coordinates end = { currentLine, GetCharacterColumn(currentLine, currentIndex + static_cast<int>(i)) };
 			u.mOperations.push_back({ GetText(start, end) , start, end, UndoOperationType::Delete});
 			DeleteRange(start, end);
 			Colorize(currentLine, 1);
@@ -1533,7 +1586,7 @@ void TextEditor::RemoveCurrentLines()
 		int prevLine = currentLine - 1;
 
 		Coordinates toDeleteStart, toDeleteEnd;
-		if (mLines.size() > nextLine) // next line exists
+		if (static_cast<int>(mLines.size()) > nextLine) // next line exists
 		{
 			toDeleteStart = Coordinates(currentLine, 0);
 			toDeleteEnd = Coordinates(nextLine, 0);
@@ -1611,7 +1664,7 @@ TextEditor::Coordinates TextEditor::SanitizeCoordinates(const Coordinates& aValu
 
 	// Move if inside a tab character
 	int charIndex = GetCharacterIndexL(out);
-	if (charIndex > -1 && charIndex < mLines[out.mLine].size() && mLines[out.mLine][charIndex].mChar == '\t')
+	if (charIndex > -1 && charIndex < static_cast<int>(mLines[out.mLine].size()) && mLines[out.mLine][charIndex].mChar == '\t')
 	{
 		int columnToLeft = GetCharacterColumn(out.mLine, charIndex);
 		int columnToRight = GetCharacterColumn(out.mLine, GetCharacterIndexR(out));
@@ -1631,7 +1684,9 @@ TextEditor::Coordinates TextEditor::GetSanitizedCursorCoordinates(int aCursor, b
 
 TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber) const
 {
-	ImVec2 origin = ImGui::GetCursorScreenPos();
+	// Use cached screen position from last Render() call
+	// This is more reliable than GetCursorScreenPos() which depends on current ImGui context
+	ImVec2 origin = mEditorScreenPos;
 	ImVec2 local(aPosition.x - origin.x + 3.0f, aPosition.y - origin.y);
 
 	if (isOverLineNumber != nullptr)
@@ -1644,6 +1699,18 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 	out.mColumn = Max(0, (int)floor((local.x - mTextStart + POS_TO_COORDS_COLUMN_OFFSET * mCharAdvance.x) / mCharAdvance.x));
 
 	return SanitizeCoordinates(out);
+}
+
+int TextEditor::CharacterIndexToColumn(int aLine, int aCharIndex) const
+{
+	return GetCharacterColumn(aLine, aCharIndex);
+}
+
+int TextEditor::ColumnToCharacterIndex(int aLine, int aColumn) const
+{
+	// Use GetCharacterIndexR to convert visual column to character index
+	Coordinates coords{ aLine, aColumn };
+	return GetCharacterIndexR(coords);
 }
 
 TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) const
@@ -1667,9 +1734,9 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 	{
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
 		bool isSpace = isspace(line[charIndex].mChar);
-		if (initialIsSpace && !isSpace ||
-			initialIsWordChar && !isWordChar ||
-			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
+		if ((initialIsSpace && !isSpace) ||
+			(initialIsWordChar && !isWordChar) ||
+			(!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar))
 		{
 			Move(lineIndex, charIndex, false, true); // one step to the right
 			break;
@@ -1695,13 +1762,13 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	char initialChar = line[charIndex].mChar;
 	while (Move(lineIndex, charIndex, false, true))
 	{
-		if (charIndex == line.size())
+		if (charIndex == static_cast<int>(line.size()))
 			break;
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
 		bool isSpace = isspace(line[charIndex].mChar);
-		if (initialIsSpace && !isSpace ||
-			initialIsWordChar && !isWordChar ||
-			!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar)
+		if ((initialIsSpace && !isSpace) ||
+			(initialIsWordChar && !isWordChar) ||
+			(!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar))
 			break;
 	}
 	return { lineIndex, GetCharacterColumn(aFrom.mLine, charIndex) };
@@ -1709,7 +1776,7 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 
 int TextEditor::GetCharacterIndexL(const Coordinates& aCoords) const
 {
-	if (aCoords.mLine >= mLines.size())
+	if (aCoords.mLine >= static_cast<int>(mLines.size()))
 		return -1;
 
 	auto& line = mLines[aCoords.mLine];
@@ -1717,7 +1784,7 @@ int TextEditor::GetCharacterIndexL(const Coordinates& aCoords) const
 	int i = 0;
 	int tabCoordsLeft = 0;
 
-	for (; i < line.size() && c < aCoords.mColumn;)
+	for (; i < static_cast<int>(line.size()) && c < aCoords.mColumn;)
 	{
 		if (line[i].mChar == '\t')
 		{
@@ -1737,33 +1804,33 @@ int TextEditor::GetCharacterIndexL(const Coordinates& aCoords) const
 
 int TextEditor::GetCharacterIndexR(const Coordinates& aCoords) const
 {
-	if (aCoords.mLine >= mLines.size())
+	if (aCoords.mLine >= static_cast<int>(mLines.size()))
 		return -1;
 	int c = 0;
 	int i = 0;
-	for (; i < mLines[aCoords.mLine].size() && c < aCoords.mColumn;)
+	for (; i < static_cast<int>(mLines[aCoords.mLine].size()) && c < aCoords.mColumn;)
 		MoveCharIndexAndColumn(aCoords.mLine, i, c);
 	return i;
 }
 
 int TextEditor::GetCharacterColumn(int aLine, int aIndex) const
 {
-	if (aLine >= mLines.size())
+	if (aLine >= static_cast<int>(mLines.size()))
 		return 0;
 	int c = 0;
 	int i = 0;
-	while (i < aIndex && i < mLines[aLine].size())
+	while (i < aIndex && i < static_cast<int>(mLines[aLine].size()))
 		MoveCharIndexAndColumn(aLine, i, c);
 	return c;
 }
 
 int TextEditor::GetFirstVisibleCharacterIndex(int aLine) const
 {
-	if (aLine >= mLines.size())
+	if (aLine >= static_cast<int>(mLines.size()))
 		return 0;
 	int c = 0;
 	int i = 0;
-	while (c < mFirstVisibleColumn && i < mLines[aLine].size())
+	while (c < mFirstVisibleColumn && i < static_cast<int>(mLines[aLine].size()))
 		MoveCharIndexAndColumn(aLine, i, c);
 	if (c > mFirstVisibleColumn)
 		i--;
@@ -1772,17 +1839,17 @@ int TextEditor::GetFirstVisibleCharacterIndex(int aLine) const
 
 int TextEditor::GetLineMaxColumn(int aLine, int aLimit) const
 {
-	if (aLine >= mLines.size())
+	if (aLine >= static_cast<int>(mLines.size()))
 		return 0;
 	int c = 0;
 	if (aLimit == -1)
 	{
-		for (int i = 0; i < mLines[aLine].size(); )
+		for (int i = 0; i < static_cast<int>(mLines[aLine].size()); )
 			MoveCharIndexAndColumn(aLine, i, c);
 	}
 	else
 	{
-		for (int i = 0; i < mLines[aLine].size(); )
+		for (int i = 0; i < static_cast<int>(mLines[aLine].size()); )
 		{
 			MoveCharIndexAndColumn(aLine, i, c);
 			if (c > aLimit)
@@ -2139,7 +2206,7 @@ void TextEditor::HandleMouseInputs()
 					mState.mCurrentCursor = 0;
 
 				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
-				Coordinates targetCursorPos = cursorCoords.mLine < mLines.size() - 1 ?
+				Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
 					Coordinates{ cursorCoords.mLine + 1, 0 } :
 					Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
 				SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
@@ -2179,7 +2246,7 @@ void TextEditor::HandleMouseInputs()
 				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), &isOverLineNumber);
 				if (isOverLineNumber)
 				{
-					Coordinates targetCursorPos = cursorCoords.mLine < mLines.size() - 1 ?
+					Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
 						Coordinates{ cursorCoords.mLine + 1, 0 } :
 						Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
 					SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
@@ -2226,6 +2293,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	/* Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)*/
 	const float fontWidth = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
 	const float fontHeight = ImGui::GetTextLineHeightWithSpacing();
+	const float fontSize = ImGui::GetFontSize();
 	mCharAdvance = ImVec2(fontWidth, fontHeight * mLineSpacing);
 
 	// Deduce mTextStart by evaluating mLines size (global lineMax) plus two spaces as text width
@@ -2238,6 +2306,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 
 	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+	mEditorScreenPos = cursorScreenPos;  // Cache for ScreenPosToCoordinates
 	mScrollX = ImGui::GetScrollX();
 	mScrollY = ImGui::GetScrollY();
 	UpdateViewVariables(mScrollX, mScrollY);
@@ -2247,8 +2316,54 @@ void TextEditor::Render(bool aParentIsFocused)
 	{
 		auto drawList = ImGui::GetWindowDrawList();
 		float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
+		const float underlineThickness = Max(1.0f, fontSize * 0.09f);
+		// Smooth sine wave parameters for elegant squiggly underlines
+		const float waveAmplitude = Max(1.5f, fontSize * 0.14f);
+		const float waveFrequency = 0.15f; // Lower = smoother waves
+		const float waveSampleStep = 1.5f; // Pixel step for smooth curve
 
-		for (int lineNo = mFirstVisibleLine; lineNo <= mLastVisibleLine && lineNo < mLines.size(); lineNo++)
+		auto drawUnderline = [&](float startX, float endX, float y, ImU32 color, UnderlineStyle style)
+		{
+			if (endX <= startX)
+				return;
+			if (style == UnderlineStyle::Solid)
+			{
+				drawList->AddLine(ImVec2(startX, y), ImVec2(endX, y), color, underlineThickness);
+				return;
+			}
+			// Draw smooth sine wave squiggly line using Bezier curves
+			// This produces a much nicer VS Code-like underline than the jagged sawtooth
+			float x = startX;
+			const float pi = 3.14159265359f;
+
+			// Build path points for smooth curve
+			std::vector<ImVec2> points;
+			points.reserve(static_cast<size_t>((endX - startX) / waveSampleStep) + 2);
+
+			while (x <= endX)
+			{
+				float phase = (x - startX) * waveFrequency;
+				float yOffset = std::sin(phase * pi * 2.0f) * waveAmplitude;
+				points.push_back(ImVec2(x, y + yOffset));
+				x += waveSampleStep;
+			}
+			// Add final point at exact endX
+			if (points.empty() || points.back().x < endX)
+			{
+				float phase = (endX - startX) * waveFrequency;
+				float yOffset = std::sin(phase * pi * 2.0f) * waveAmplitude;
+				points.push_back(ImVec2(endX, y + yOffset));
+			}
+
+			// Draw the polyline with anti-aliasing
+			if (points.size() >= 2)
+			{
+				drawList->AddPolyline(points.data(), static_cast<int>(points.size()), color,
+					ImDrawFlags_None, underlineThickness);
+			}
+		};
+
+		for (int lineNo = mFirstVisibleLine; lineNo <= mLastVisibleLine && lineNo < static_cast<int>(mLines.size()); lineNo++)
 		{
 			ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNo * mCharAdvance.y);
 			ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
@@ -2258,6 +2373,44 @@ void TextEditor::Render(bool aParentIsFocused)
 
 			Coordinates lineStartCoord(lineNo, 0);
 			Coordinates lineEndCoord(lineNo, maxColumnLimited);
+			const int lineMaxVisibleColumn = GetLineMaxColumn(lineNo, mLastVisibleColumn);
+
+			if (!mHighlights.empty())
+			{
+				for (const auto& highlight : mHighlights)
+				{
+					int startLine = highlight.mStartLine;
+					int endLine = highlight.mEndLine;
+					int startIndex = Max(0, highlight.mStartCharIndex);
+					int endIndex = Max(0, highlight.mEndCharIndex);
+
+					if (endLine < startLine || (endLine == startLine && endIndex < startIndex))
+					{
+						std::swap(startLine, endLine);
+						std::swap(startIndex, endIndex);
+					}
+
+					if (lineNo < startLine || lineNo > endLine)
+						continue;
+
+					int startColumn = (lineNo == startLine) ? GetCharacterColumn(lineNo, startIndex) : 0;
+					int endColumn = (lineNo == endLine) ? GetCharacterColumn(lineNo, endIndex) : lineMaxVisibleColumn;
+
+					startColumn = Max(0, Min(startColumn, lineMaxVisibleColumn));
+					endColumn = Max(0, Min(endColumn, lineMaxVisibleColumn));
+					if (endColumn <= startColumn)
+						continue;
+
+					float rectStart = TextDistanceToLineStart({ lineNo, startColumn }, false);
+					float rectEnd = TextDistanceToLineStart({ lineNo, endColumn }, false);
+					ImU32 color = highlight.mColor != 0 ? highlight.mColor : mPalette[(int)PaletteIndex::Selection];
+
+					drawList->AddRectFilled(
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectStart, lineStartScreenPos.y },
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
+						color);
+				}
+			}
 
 			// Draw selection for the current line
 			for (int c = 0; c <= mState.mCurrentCursor; c++)
@@ -2272,7 +2425,7 @@ void TextEditor::Render(bool aParentIsFocused)
 					rectStart = cursorSelectionStart > lineStartCoord ? TextDistanceToLineStart(cursorSelectionStart) : 0.0f;
 				if (cursorSelectionEnd > lineStartCoord)
 					rectEnd = TextDistanceToLineStart(cursorSelectionEnd < lineEndCoord ? cursorSelectionEnd : lineEndCoord);
-				if (cursorSelectionEnd.mLine > lineNo || cursorSelectionEnd.mLine == lineNo && cursorSelectionEnd > lineEndCoord)
+				if (cursorSelectionEnd.mLine > lineNo || (cursorSelectionEnd.mLine == lineNo && cursorSelectionEnd > lineEndCoord))
 					rectEnd += mCharAdvance.x;
 
 				if (rectStart != -1 && rectEnd != -1 && rectStart < rectEnd)
@@ -2303,20 +2456,32 @@ void TextEditor::Render(bool aParentIsFocused)
 				// Render the cursors
 				if (focused)
 				{
+					// Cursor blink effect - smooth pulsing between 0.4 and 1.0 alpha
+					const float blink_period = 1.0f; // seconds
+					float t = std::fmod(static_cast<float>(ImGui::GetTime()), blink_period);
+					float blink_alpha = 0.5f + 0.5f * std::cos(t * 3.14159265f * 2.0f / blink_period);
+					blink_alpha = 0.4f + blink_alpha * 0.6f; // Clamp to 0.4-1.0 range
+
 					for (const auto& cursorCoords : cursorCoordsInThisLine)
 					{
-						float width = 1.0f;
-						auto cindex = GetCharacterIndexR(cursorCoords);
+						// Slightly wider cursor for better visibility (2 pixels)
+						float width = Max(2.0f, fontSize * 0.08f);
 						float cx = TextDistanceToLineStart(cursorCoords);
+
+						// Apply blink alpha to cursor color
+						ImU32 cursorColor = mPalette[(int)PaletteIndex::Cursor];
+						ImVec4 colorVec = ImGui::ColorConvertU32ToFloat4(cursorColor);
+						colorVec.w *= blink_alpha;
+						cursorColor = ImGui::ColorConvertFloat4ToU32(colorVec);
 
 						ImVec2 cstart(textScreenPos.x + cx, lineStartScreenPos.y);
 						ImVec2 cend(textScreenPos.x + cx + width, lineStartScreenPos.y + mCharAdvance.y);
-						drawList->AddRectFilled(cstart, cend, mPalette[(int)PaletteIndex::Cursor]);
+						drawList->AddRectFilled(cstart, cend, cursorColor);
 						if (mCursorOnBracket)
 						{
 							ImVec2 topLeft = { cstart.x, lineStartScreenPos.y + fontHeight + 1.0f };
 							ImVec2 bottomRight = { topLeft.x + mCharAdvance.x, topLeft.y + 1.0f };
-							drawList->AddRectFilled(topLeft, bottomRight, mPalette[(int)PaletteIndex::Cursor]);
+							drawList->AddRectFilled(topLeft, bottomRight, cursorColor);
 						}
 					}
 				}
@@ -2326,7 +2491,7 @@ void TextEditor::Render(bool aParentIsFocused)
 			static std::string glyphBuffer;
 			int charIndex = GetFirstVisibleCharacterIndex(lineNo);
 			int column = mFirstVisibleColumn; // can be in the middle of tab character
-			while (charIndex < mLines[lineNo].size() && column <= mLastVisibleColumn)
+			while (charIndex < static_cast<int>(mLines[lineNo].size()) && column <= mLastVisibleColumn)
 			{
 				auto& glyph = line[charIndex];
 				auto color = GetGlyphColor(glyph);
@@ -2390,6 +2555,38 @@ void TextEditor::Render(bool aParentIsFocused)
 				}
 
 				MoveCharIndexAndColumn(lineNo, charIndex, column);
+			}
+
+			if (!mUnderlines.empty())
+			{
+				const int lineMaxColumn = GetLineMaxColumn(lineNo);
+				const float underlineY = lineStartScreenPos.y + fontSize - 1.0f;
+				for (const auto& underline : mUnderlines)
+				{
+					Coordinates startCoord = SanitizeCoordinates({ underline.mStartLine, underline.mStartColumn });
+					Coordinates endCoord = SanitizeCoordinates({ underline.mEndLine, underline.mEndColumn });
+					if (endCoord < startCoord)
+						std::swap(startCoord, endCoord);
+					if (lineNo < startCoord.mLine || lineNo > endCoord.mLine)
+						continue;
+
+					int startColumn = (lineNo == startCoord.mLine) ? startCoord.mColumn : 0;
+					int endColumn = (lineNo == endCoord.mLine) ? endCoord.mColumn : lineMaxColumn;
+					startColumn = Max(0, Min(startColumn, lineMaxColumn));
+					endColumn = Max(0, Min(endColumn, lineMaxColumn));
+					if (endColumn <= startColumn)
+						continue;
+
+					float startX = TextDistanceToLineStart({ lineNo, startColumn }, false);
+					float endX = TextDistanceToLineStart({ lineNo, endColumn }, false);
+					ImU32 underlineColor = underline.mColor != 0 ? underline.mColor : mPalette[(int)PaletteIndex::ErrorMarker];
+					drawUnderline(
+						lineStartScreenPos.x + mTextStart + startX,
+						lineStartScreenPos.x + mTextStart + endX,
+						underlineY,
+						underlineColor,
+						underline.mStyle);
+				}
 			}
 		}
 	}
@@ -2689,17 +2886,17 @@ void TextEditor::ColorizeInternal()
 
 	if (mCheckComments)
 	{
-		auto endLine = mLines.size();
-		auto endIndex = 0;
-		auto commentStartLine = endLine;
-		auto commentStartIndex = endIndex;
+		int endLine = static_cast<int>(mLines.size());
+		int endIndex = 0;
+		int commentStartLine = endLine;
+		int commentStartIndex = endIndex;
 		auto withinString = false;
 		auto withinSingleLineComment = false;
 		auto withinPreproc = false;
 		auto firstChar = true;			// there is no other non-whitespace characters in the line before
 		auto concatenate = false;		// '\' on the very end of the line
-		auto currentLine = 0;
-		auto currentIndex = 0;
+		int currentLine = 0;
+		int currentIndex = 0;
 		while (currentLine < endLine || currentIndex < endIndex)
 		{
 			auto& line = mLines[currentLine];
@@ -2828,58 +3025,61 @@ void TextEditor::ColorizeInternal()
 
 const TextEditor::Palette& TextEditor::GetDarkPalette()
 {
+	// Refined dark palette - harmonized with vscode theme system
+	// Colors designed for better contrast and reduced eye strain
 	const static Palette p = { {
-			0xdcdfe4ff,	// Default
-			0xe06c75ff,	// Keyword
-			0xe5c07bff,	// Number
-			0x98c379ff,	// String
-			0xe0a070ff, // Char literal
-			0x6a7384ff, // Punctuation
-			0x808040ff,	// Preprocessor
-			0xdcdfe4ff, // Identifier
-			0x61afefff, // Known identifier
-			0xc678ddff, // Preproc identifier
-			0x3696a2ff, // Comment (single line)
-			0x3696a2ff, // Comment (multi line)
-			0x282c34ff, // Background
-			0xe0e0e0ff, // Cursor
-			0x2060a080, // Selection
-			0xff200080, // ErrorMarker
-			0xffffff15, // ControlCharacter
-			0x0080f040, // Breakpoint
-			0x7a8394ff, // Line number
-			0x00000040, // Current line fill
-			0x80808040, // Current line fill (inactive)
-			0xa0a0a040, // Current line edge
+			0xe8eaefff,	// Default - warm white for readability
+			0xe8a76aff,	// Keyword - warm orange (accent3)
+			0xe5b455ff,	// Number - golden warning color
+			0x6fcf8eff,	// String - fresh green (success)
+			0x6fcf8eff, // Char literal - same as string
+			0xa8adb8ff, // Punctuation - lighter grey for better visibility
+			0xb794f6ff,	// Preprocessor - soft purple (accent2)
+			0xe8eaefff, // Identifier - same as default
+			0x5ac8bdff, // Known identifier - vibrant teal (accent)
+			0xe5b455ff, // Preproc identifier - golden
+			0x6b7280ff, // Comment (single line) - visible but muted
+			0x6b7280ff, // Comment (multi line) - same as single
+			0x0d0e10ff, // Background - rich dark base
+			0xe8eaefff, // Cursor - matches text color
+			0x5ac8bd40, // Selection - accent with 25% alpha
+			0xe86b7380, // ErrorMarker - error color with alpha
+			0x8b919e25, // ControlCharacter - subtle muted color
+			0xe86b7340, // Breakpoint - error with alpha
+			0x5d636fff, // Line number - subtle but readable
+			0xe8eaef08, // Current line fill - very subtle highlight
+			0xe8eaef04, // Current line fill (inactive) - even more subtle
+			0x5ac8bd18, // Current line edge - accent tint
 		} };
 	return p;
 }
 
 const TextEditor::Palette& TextEditor::GetMarianaPalette()
 {
+	// Mariana palette - sublime text inspired, oceanic feel
 	const static Palette p = { {
-			0xffffffff,	// Default
-			0xc695c6ff,	// Keyword
-			0xf9ae58ff,	// Number
-			0x99c794ff,	// String
-			0xe0a070ff, // Char literal
-			0x5fb4b4ff, // Punctuation
-			0x808040ff,	// Preprocessor
-			0xffffffff, // Identifier
-			0x4dc69bff, // Known identifier
-			0xe0a0ffff, // Preproc identifier
-			0xa6acb9ff, // Comment (single line)
-			0xa6acb9ff, // Comment (multi line)
-			0x303841ff, // Background
-			0xe0e0e0ff, // Cursor
-			0x6e7a8580, // Selection
-			0xec5f6680, // ErrorMarker
-			0xffffff30, // ControlCharacter
-			0x0080f040, // Breakpoint
-			0xffffffb0, // Line number
-			0x4e5a6580, // Current line fill
-			0x4e5a6530, // Current line fill (inactive)
-			0x4e5a65b0, // Current line edge
+			0xf8f8f2ff,	// Default - bright white
+			0xc792eaff,	// Keyword - soft purple
+			0xf78c6cff,	// Number - coral orange
+			0xaddb67ff,	// String - lime green
+			0xaddb67ff, // Char literal - same as string
+			0x89ddffff, // Punctuation - cyan
+			0x82aaffff,	// Preprocessor - light blue
+			0xf8f8f2ff, // Identifier - same as default
+			0x80cbc4ff, // Known identifier - teal
+			0xffcb6bff, // Preproc identifier - yellow
+			0x637777ff, // Comment (single line) - muted teal
+			0x637777ff, // Comment (multi line) - same
+			0x263238ff, // Background - dark blue-grey
+			0xf8f8f2ff, // Cursor - matches text
+			0x54657060, // Selection - subtle highlight
+			0xff5370a0, // ErrorMarker - red with alpha
+			0x54657040, // ControlCharacter - subtle
+			0xff537050, // Breakpoint - red with alpha
+			0x546570c0, // Line number - muted
+			0x54657020, // Current line fill
+			0x54657010, // Current line fill (inactive)
+			0x80cbc420, // Current line edge - teal tint
 		} };
 	return p;
 }

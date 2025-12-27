@@ -91,67 +91,41 @@ public:
 
 	void SetTextLines(const std::vector<std::string>& aLines);
 	std::vector<std::string> GetTextLines() const;
+	std::string GetSelectedText(int aCursor = -1) const;
+	bool ReplaceRange(int aStartLine, int aStartChar, int aEndLine, int aEndChar, const char* aText, int aCursor = -1);
 
-	bool Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
-
-	void ImGuiDebugPanel(const std::string& panelName = "Debug");
-	void UnitTests();
-
-private:
-	// ------------- Generic utils ------------- //
-
-	static inline ImVec4 U32ColorToVec4(ImU32 in)
+	struct Highlight
 	{
-		float s = 1.0f / 255.0f;
-		return ImVec4(
-			((in >> IM_COL32_A_SHIFT) & 0xFF) * s,
-			((in >> IM_COL32_B_SHIFT) & 0xFF) * s,
-			((in >> IM_COL32_G_SHIFT) & 0xFF) * s,
-			((in >> IM_COL32_R_SHIFT) & 0xFF) * s);
-	}
-	static inline bool IsUTFSequence(char c)
-	{
-		return (c & 0xC0) == 0x80;
-	}
-	static inline float Distance(const ImVec2& a, const ImVec2& b)
-	{
-		float x = a.x - b.x;
-		float y = a.y - b.y;
-		return sqrt(x * x + y * y);
-	}
-	template<typename T>
-	static inline T Max(T a, T b) { return a > b ? a : b; }
-	template<typename T>
-	static inline T Min(T a, T b) { return a < b ? a : b; }
-
-	// ------------- Internal ------------- //
-
-	enum class PaletteIndex
-	{
-		Default,
-		Keyword,
-		Number,
-		String,
-		CharLiteral,
-		Punctuation,
-		Preprocessor,
-		Identifier,
-		KnownIdentifier,
-		PreprocIdentifier,
-		Comment,
-		MultiLineComment,
-		Background,
-		Cursor,
-		Selection,
-		ErrorMarker,
-		ControlCharacter,
-		Breakpoint,
-		LineNumber,
-		CurrentLineFill,
-		CurrentLineFillInactive,
-		CurrentLineEdge,
-		Max
+		int mStartLine = 0;
+		int mStartCharIndex = 0;
+		int mEndLine = 0;
+		int mEndCharIndex = 0;
+		ImU32 mColor = 0;
 	};
+
+	void SetHighlights(const std::vector<Highlight>& aHighlights);
+	void ClearHighlights();
+	inline const std::vector<Highlight>& GetHighlights() const { return mHighlights; }
+
+	enum class UnderlineStyle
+	{
+		Solid,
+		Wavy
+	};
+
+	struct Underline
+	{
+		int mStartLine = 0;
+		int mStartColumn = 0;
+		int mEndLine = 0;
+		int mEndColumn = 0;
+		ImU32 mColor = 0;
+		UnderlineStyle mStyle = UnderlineStyle::Wavy;
+	};
+
+	void SetUnderlines(const std::vector<Underline>& aUnderlines);
+	void ClearUnderlines();
+	inline const std::vector<Underline>& GetUnderlines() const { return mUnderlines; }
 
 	// Represents a character coordinate from the user's point of view,
 	// i. e. consider an uniform grid (assuming fixed-width font) on the
@@ -223,6 +197,81 @@ private:
 			return Coordinates(mLine + o.mLine, mColumn + o.mColumn);
 		}
 	};
+
+	// Convert screen position to text coordinates (for hover tooltips, etc.)
+	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber = nullptr) const;
+
+	// Convert character index (byte offset) to visual column (accounts for tabs)
+	int CharacterIndexToColumn(int aLine, int aCharIndex) const;
+
+	// Convert visual column to character index (reverse of CharacterIndexToColumn)
+	int ColumnToCharacterIndex(int aLine, int aColumn) const;
+
+	// Get current scroll position (for detecting scroll changes)
+	ImVec2 GetScrollPosition() const { return ImVec2(mScrollX, mScrollY); }
+
+	bool Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
+
+	void ImGuiDebugPanel(const std::string& panelName = "Debug");
+	void UnitTests();
+
+private:
+	// ------------- Generic utils ------------- //
+
+	static inline ImVec4 U32ColorToVec4(ImU32 in)
+	{
+		float s = 1.0f / 255.0f;
+		return ImVec4(
+			((in >> IM_COL32_A_SHIFT) & 0xFF) * s,
+			((in >> IM_COL32_B_SHIFT) & 0xFF) * s,
+			((in >> IM_COL32_G_SHIFT) & 0xFF) * s,
+			((in >> IM_COL32_R_SHIFT) & 0xFF) * s);
+	}
+	static inline bool IsUTFSequence(char c)
+	{
+		return (c & 0xC0) == 0x80;
+	}
+	static inline float Distance(const ImVec2& a, const ImVec2& b)
+	{
+		float x = a.x - b.x;
+		float y = a.y - b.y;
+		return sqrt(x * x + y * y);
+	}
+	template<typename T>
+	static inline T Max(T a, T b) { return a > b ? a : b; }
+	template<typename T>
+	static inline T Min(T a, T b) { return a < b ? a : b; }
+
+	// ------------- Internal ------------- //
+
+	enum class PaletteIndex
+	{
+		Default,
+		Keyword,
+		Number,
+		String,
+		CharLiteral,
+		Punctuation,
+		Preprocessor,
+		Identifier,
+		KnownIdentifier,
+		PreprocIdentifier,
+		Comment,
+		MultiLineComment,
+		Background,
+		Cursor,
+		Selection,
+		ErrorMarker,
+		ControlCharacter,
+		Breakpoint,
+		LineNumber,
+		CurrentLineFill,
+		CurrentLineFillInactive,
+		CurrentLineEdge,
+		Max
+	};
+
+	// Coordinates struct moved to public section
 
 	struct Cursor
 	{
@@ -325,7 +374,6 @@ private:
 
 	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
 	std::string GetClipboardText() const;
-	std::string GetSelectedText(int aCursor = -1) const;
 
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1, bool aClearSelection = true);
 
@@ -367,7 +415,7 @@ private:
 
 	Coordinates SanitizeCoordinates(const Coordinates& aValue) const;
 	Coordinates GetSanitizedCursorCoordinates(int aCursor = -1, bool aStart = false) const;
-	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber = nullptr) const;
+	// ScreenPosToCoordinates moved to public section
 	Coordinates FindWordStart(const Coordinates& aFrom) const;
 	Coordinates FindWordEnd(const Coordinates& aFrom) const;
 	int GetCharacterIndexL(const Coordinates& aCoordinates) const;
@@ -438,6 +486,7 @@ private:
 	float mContentHeight = 0.0f;
 	float mScrollX = 0.0f;
 	float mScrollY = 0.0f;
+	ImVec2 mEditorScreenPos = ImVec2(0.0f, 0.0f);  // Cached screen position of the editor content area
 	bool mPanning = false;
 	bool mDraggingSelection = false;
 	ImVec2 mLastMousePos;
@@ -452,6 +501,8 @@ private:
 	Palette mPalette;
 	LanguageDefinitionId mLanguageDefinitionId;
 	const LanguageDefinition* mLanguageDefinition = nullptr;
+	std::vector<Highlight> mHighlights;
+	std::vector<Underline> mUnderlines;
 
 	inline bool IsHorizontalScrollbarVisible() const { return mCurrentSpaceWidth > mContentWidth; }
 	inline bool IsVerticalScrollbarVisible() const { return mCurrentSpaceHeight > mContentHeight; }
