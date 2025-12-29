@@ -550,8 +550,10 @@ TextEditor::UndoRecord::UndoRecord(const std::vector<UndoOperation>& aOperations
 	mOperations = aOperations;
 	mBefore = aBefore;
 	mAfter = aAfter;
+#ifndef NDEBUG
 	for (const UndoOperation& o : mOperations)
 		assert(o.mStart <= o.mEnd);
+#endif
 }
 
 void TextEditor::UndoRecord::Undo(TextEditor* aEditor)
@@ -1544,8 +1546,7 @@ void TextEditor::ToggleLineComment()
 				continue;
 			size_t i = 0;
 			while (i < commentString.length() && currentIndex + static_cast<int>(i) < static_cast<int>(mLines[currentLine].size()) && mLines[currentLine][currentIndex + i].mChar == commentString[i]) i++;
-			bool matched = i == commentString.length();
-			assert(matched);
+			assert(i == commentString.length());
 			if (currentIndex + static_cast<int>(i) < static_cast<int>(mLines[currentLine].size()) && mLines[currentLine][currentIndex + i].mChar == ' ')
 				i++;
 
