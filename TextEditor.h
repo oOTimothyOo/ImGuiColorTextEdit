@@ -24,6 +24,33 @@ public:
 	{
 		Dark, Light, Mariana, RetroBlue
 	};
+	enum class PaletteIndex
+	{
+		Default,
+		Keyword,
+		Number,
+		String,
+		CharLiteral,
+		Punctuation,
+		Preprocessor,
+		Identifier,
+		KnownIdentifier,
+		PreprocIdentifier,
+		Comment,
+		MultiLineComment,
+		Background,
+		Cursor,
+		Selection,
+		ErrorMarker,
+		ControlCharacter,
+		Breakpoint,
+		LineNumber,
+		CurrentLineFill,
+		CurrentLineFillInactive,
+		CurrentLineEdge,
+		Max
+	};
+	typedef std::array<ImU32, (unsigned)PaletteIndex::Max> Palette;
 	enum class LanguageDefinitionId
 	{
 		None, Cpp, C, Cs, Python, Lua, Json, Sql, AngelScript, Glsl, Hlsl
@@ -45,6 +72,7 @@ public:
 	inline bool IsShortTabsEnabled() const { return mShortTabs; }
 	inline int GetLineCount() const { return mLines.size(); }
 	void SetPalette(PaletteId aValue);
+	void SetPalette(const Palette& aValue);
 	PaletteId GetPalette() const { return mPaletteId; }
 	void SetLanguageDefinition(LanguageDefinitionId aValue);
 	LanguageDefinitionId GetLanguageDefinition() const { return mLanguageDefinitionId; };
@@ -244,33 +272,6 @@ private:
 
 	// ------------- Internal ------------- //
 
-	enum class PaletteIndex
-	{
-		Default,
-		Keyword,
-		Number,
-		String,
-		CharLiteral,
-		Punctuation,
-		Preprocessor,
-		Identifier,
-		KnownIdentifier,
-		PreprocIdentifier,
-		Comment,
-		MultiLineComment,
-		Background,
-		Cursor,
-		Selection,
-		ErrorMarker,
-		ControlCharacter,
-		Breakpoint,
-		LineNumber,
-		CurrentLineFill,
-		CurrentLineFillInactive,
-		CurrentLineEdge,
-		Max
-	};
-
 	// Coordinates struct moved to public section
 
 	struct Cursor
@@ -299,8 +300,6 @@ private:
 	};
 
 	typedef std::unordered_map<std::string, Identifier> Identifiers;
-	typedef std::array<ImU32, (unsigned)PaletteIndex::Max> Palette;
-
 	struct Glyph
 	{
 		char mChar;
