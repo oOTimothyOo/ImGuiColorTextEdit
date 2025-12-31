@@ -58,6 +58,16 @@ void TextEditor::SetPalette(PaletteId aValue)
 	}
 }
 
+void TextEditor::SetPalette(const Palette& aValue)
+{
+	for (int i = 0; i < (int)PaletteIndex::Max; ++i)
+	{
+		ImVec4 color = U32ColorToVec4(aValue[i]);
+		color.w *= ImGui::GetStyle().Alpha;
+		mPalette[i] = ImGui::ColorConvertFloat4ToU32(color);
+	}
+}
+
 void TextEditor::SetLanguageDefinition(LanguageDefinitionId aValue)
 {
 	mLanguageDefinitionId = aValue;
