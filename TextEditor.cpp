@@ -1693,6 +1693,161 @@ TextEditor::Coordinates TextEditor::GetSanitizedCursorCoordinates(int aCursor, b
 	return SanitizeCoordinates(aStart ? mState.mCursors[aCursor].mInteractiveStart : mState.mCursors[aCursor].mInteractiveEnd);
 }
 
+// Helper to check if a modifier is present in the list
+static bool HasModifier(const std::vector<std::string>& modifiers, const char* mod) {
+    for (const auto& m : modifiers) {
+        if (m == mod) return true;
+    }
+    return false;
+}
+
+// Semantic token styling result
+struct SemanticTokenStyle {
+    TextEditor::PaletteIndex colorIndex = TextEditor::PaletteIndex::Default;
+    bool italic = false;
+    bool bold = false;
+    bool underline = false;
+    bool strikethrough = false;
+};
+
+static SemanticTokenStyle GetStyleForSemanticToken(const std::string& type, const std::vector<std::string>& modifiers) {
+    SemanticTokenStyle style;
+
+    // Check modifiers that override everything
+    bool isReadonly = HasModifier(modifiers, "readonly");
+    bool isStatic = HasModifier(modifiers, "static");
+    bool isDeprecated = HasModifier(modifiers, "deprecated");
+    bool isAbstract = HasModifier(modifiers, "abstract");
+    bool isVirtual = HasModifier(modifiers, "virtual");
+    bool isDefinition = HasModifier(modifiers, "definition");
+    bool isDefaultLibrary = HasModifier(modifiers, "defaultLibrary");
+
+    // Apply style modifiers
+    if (isDeprecated) {
+        style.strikethrough = true;
+        style.colorIndex = TextEditor::PaletteIndex::Deprecated;
+    }
+    if (isStatic) {
+        style.underline = true;
+    }
+    if (isAbstract || isVirtual) {
+        style.italic = true;
+    }
+    if (isDefinition) {
+        style.bold = true;
+    }
+
+    // Map token type to palette index (unless deprecated already set it)
+    if (!isDeprecated) {
+        if (type == "namespace") {
+            style.colorIndex = TextEditor::PaletteIndex::Namespace;
+        } else if (type == "type" || type == "class" || type == "enum" ||
+                   type == "interface" || type == "struct") {
+            style.colorIndex = TextEditor::PaletteIndex::Type;
+        } else if (type == "typeParameter") {
+            style.colorIndex = TextEditor::PaletteIndex::TypeParameter;
+        } else if (type == "concept") {
+            style.colorIndex = TextEditor::PaletteIndex::Concept;
+        } else if (type == "parameter") {
+            style.colorIndex = TextEditor::PaletteIndex::Parameter;
+            style.italic = true;  // Parameters are typically italic
+        } else if (type == "variable") {
+            if (isReadonly) {
+                style.colorIndex = TextEditor::PaletteIndex::Constant;
+            } else if (isStatic) {
+                style.colorIndex = TextEditor::PaletteIndex::StaticSymbol;
+            } else {
+                style.colorIndex = TextEditor::PaletteIndex::Variable;
+            }
+        } else if (type == "property") {
+            if (isStatic) {
+                style.colorIndex = TextEditor::PaletteIndex::StaticSymbol;
+            } else {
+                style.colorIndex = TextEditor::PaletteIndex::Property;
+            }
+        } else if (type == "enumMember") {
+            style.colorIndex = TextEditor::PaletteIndex::EnumMember;
+        } else if (type == "event") {
+            style.colorIndex = TextEditor::PaletteIndex::Variable;
+        } else if (type == "function") {
+            if (isDefaultLibrary) {
+                style.colorIndex = TextEditor::PaletteIndex::KnownIdentifier;
+            } else {
+                style.colorIndex = TextEditor::PaletteIndex::Function;
+            }
+        } else if (type == "method") {
+            if (isStatic) {
+                style.colorIndex = TextEditor::PaletteIndex::StaticSymbol;
+            } else {
+                style.colorIndex = TextEditor::PaletteIndex::Method;
+            }
+        } else if (type == "macro") {
+            style.colorIndex = TextEditor::PaletteIndex::Macro;
+        } else if (type == "keyword" || type == "modifier") {
+            style.colorIndex = TextEditor::PaletteIndex::Keyword;
+        } else if (type == "comment") {
+            style.colorIndex = TextEditor::PaletteIndex::Comment;
+        } else if (type == "string") {
+            style.colorIndex = TextEditor::PaletteIndex::String;
+        } else if (type == "number") {
+            style.colorIndex = TextEditor::PaletteIndex::Number;
+        } else if (type == "regexp") {
+            style.colorIndex = TextEditor::PaletteIndex::String;
+        } else if (type == "operator") {
+            style.colorIndex = TextEditor::PaletteIndex::Operator;
+        } else if (type == "label") {
+            style.colorIndex = TextEditor::PaletteIndex::Label;
+        }
+    }
+
+    return style;
+}
+
+void TextEditor::SetSemanticTokens(const std::vector<SemanticToken>& aTokens)
+{
+	// Store tokens for re-application after colorization
+	mSemanticTokens = aTokens;
+	ReapplySemanticTokens();
+}
+
+void TextEditor::ClearSemanticTokens()
+{
+	mSemanticTokens.clear();
+}
+
+void TextEditor::ReapplySemanticTokens()
+{
+	for (const auto& token : mSemanticTokens)
+	{
+		if (token.mLine < 0 || token.mLine >= (int)mLines.size()) continue;
+
+		auto& line = mLines[token.mLine];
+		int startIdx = token.mStartChar;
+		int endIdx = startIdx + token.mLength;
+
+		// Ensure bounds
+		if (startIdx >= (int)line.size()) continue;
+		if (endIdx > (int)line.size()) endIdx = (int)line.size();
+
+		// Get full style including modifiers
+		auto style = GetStyleForSemanticToken(token.mType, token.mModifiers);
+		if (style.colorIndex == PaletteIndex::Default) continue;
+
+		for (int i = startIdx; i < endIdx; ++i)
+		{
+			line[i].mColorIndex = style.colorIndex;
+			line[i].mComment = (style.colorIndex == PaletteIndex::Comment);
+			line[i].mPreprocessor = (style.colorIndex == PaletteIndex::Preprocessor ||
+			                         style.colorIndex == PaletteIndex::Macro);
+			// Apply style flags
+			line[i].mItalic = style.italic;
+			line[i].mBold = style.bold;
+			line[i].mUnderline = style.underline;
+			line[i].mStrikethrough = style.strikethrough;
+		}
+	}
+}
+
 TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber) const
 {
 	// Use cached screen position from last Render() call
@@ -1710,6 +1865,19 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 	out.mColumn = Max(0, (int)floor((local.x - mTextStart + POS_TO_COORDS_COLUMN_OFFSET * mCharAdvance.x) / mCharAdvance.x));
 
 	return SanitizeCoordinates(out);
+}
+
+ImVec2 TextEditor::CoordinatesToScreenPos(const Coordinates& aPosition) const
+{
+	Coordinates coords = SanitizeCoordinates(aPosition);
+	const float x = mEditorScreenPos.x + mTextStart - mScrollX + TextDistanceToLineStart(coords, true);
+	const float y = mEditorScreenPos.y + (coords.mLine * mCharAdvance.y) - mScrollY;
+	return ImVec2(x, y);
+}
+
+float TextEditor::GetLineHeight() const
+{
+	return mCharAdvance.y;
 }
 
 int TextEditor::CharacterIndexToColumn(int aLine, int aCharIndex) const
@@ -2454,6 +2622,79 @@ void TextEditor::Render(bool aParentIsFocused)
 				drawList->AddText(ImVec2(lineStartScreenPos.x + mTextStart - lineNoWidth, lineStartScreenPos.y), mPalette[(int)PaletteIndex::LineNumber], lineNumberBuffer);
 			}
 
+			// Draw diagnostic gutter icons (in the left margin before line numbers)
+			if (!mUnderlines.empty())
+			{
+				DiagnosticSeverity worstSeverity = DiagnosticSeverity::None;
+				ImU32 iconColor = 0;
+
+				// Find the worst severity diagnostic on this line
+				for (const auto& underline : mUnderlines)
+				{
+					if (lineNo >= underline.mStartLine && lineNo <= underline.mEndLine)
+					{
+						if (underline.mSeverity != DiagnosticSeverity::None &&
+							(static_cast<int>(underline.mSeverity) < static_cast<int>(worstSeverity) ||
+							 worstSeverity == DiagnosticSeverity::None))
+						{
+							worstSeverity = underline.mSeverity;
+							iconColor = underline.mColor;
+						}
+					}
+				}
+
+				// Draw gutter icon based on severity
+				if (worstSeverity != DiagnosticSeverity::None)
+				{
+					const float iconSize = fontSize * 0.55f;
+					const float iconX = lineStartScreenPos.x + 4.0f;
+					const float iconY = lineStartScreenPos.y + (mCharAdvance.y - iconSize) * 0.5f;
+					const ImVec2 iconCenter(iconX + iconSize * 0.5f, iconY + iconSize * 0.5f);
+
+					if (worstSeverity == DiagnosticSeverity::Error)
+					{
+						// Red filled circle with X
+						drawList->AddCircleFilled(iconCenter, iconSize * 0.5f, iconColor, 16);
+						const float cross = iconSize * 0.25f;
+						ImU32 white = IM_COL32(255, 255, 255, 255);
+						drawList->AddLine(ImVec2(iconCenter.x - cross, iconCenter.y - cross),
+						                  ImVec2(iconCenter.x + cross, iconCenter.y + cross), white, 1.5f);
+						drawList->AddLine(ImVec2(iconCenter.x + cross, iconCenter.y - cross),
+						                  ImVec2(iconCenter.x - cross, iconCenter.y + cross), white, 1.5f);
+					}
+					else if (worstSeverity == DiagnosticSeverity::Warning)
+					{
+						// Yellow triangle with !
+						const float triHeight = iconSize * 0.85f;
+						const float triWidth = iconSize * 0.9f;
+						ImVec2 p1(iconCenter.x, iconY + iconSize * 0.05f);
+						ImVec2 p2(iconCenter.x - triWidth * 0.5f, iconY + triHeight);
+						ImVec2 p3(iconCenter.x + triWidth * 0.5f, iconY + triHeight);
+						drawList->AddTriangleFilled(p1, p2, p3, iconColor);
+						// Draw ! mark
+						ImU32 dark = IM_COL32(0, 0, 0, 220);
+						const float exclamTop = iconCenter.y - iconSize * 0.15f;
+						const float exclamBot = iconCenter.y + iconSize * 0.1f;
+						drawList->AddLine(ImVec2(iconCenter.x, exclamTop), ImVec2(iconCenter.x, exclamBot), dark, 1.5f);
+						drawList->AddCircleFilled(ImVec2(iconCenter.x, iconCenter.y + iconSize * 0.22f), 1.2f, dark);
+					}
+					else if (worstSeverity == DiagnosticSeverity::Information)
+					{
+						// Blue circle with i
+						drawList->AddCircleFilled(iconCenter, iconSize * 0.5f, iconColor, 16);
+						ImU32 white = IM_COL32(255, 255, 255, 255);
+						drawList->AddCircleFilled(ImVec2(iconCenter.x, iconCenter.y - iconSize * 0.15f), 1.2f, white);
+						drawList->AddLine(ImVec2(iconCenter.x, iconCenter.y - iconSize * 0.02f),
+						                  ImVec2(iconCenter.x, iconCenter.y + iconSize * 0.22f), white, 1.5f);
+					}
+					else if (worstSeverity == DiagnosticSeverity::Hint)
+					{
+						// Light bulb / subtle circle
+						drawList->AddCircle(iconCenter, iconSize * 0.4f, iconColor, 16, 1.5f);
+					}
+				}
+			}
+
 			std::vector<Coordinates> cursorCoordsInThisLine;
 			for (int c = 0; c <= mState.mCurrentCursor; c++)
 			{
@@ -2563,6 +2804,29 @@ void TextEditor::Render(bool aParentIsFocused)
 					for (int i = 0; i < seqLength; i++)
 						glyphBuffer.push_back(line[charIndex + i].mChar);
 					drawList->AddText(targetGlyphPos, color, glyphBuffer.c_str());
+
+					// Render style decorations for semantic tokens
+					float glyphWidth = mCharAdvance.x * seqLength;
+
+					// Strikethrough for deprecated symbols
+					if (glyph.mStrikethrough)
+					{
+						float strikeY = targetGlyphPos.y + fontHeight * 0.5f;
+						drawList->AddLine(
+							ImVec2(targetGlyphPos.x, strikeY),
+							ImVec2(targetGlyphPos.x + glyphWidth, strikeY),
+							color, 1.0f);
+					}
+
+					// Underline for static symbols
+					if (glyph.mUnderline)
+					{
+						float underlineY = targetGlyphPos.y + fontHeight - 1.0f;
+						drawList->AddLine(
+							ImVec2(targetGlyphPos.x, underlineY),
+							ImVec2(targetGlyphPos.x + glyphWidth, underlineY),
+							color, 1.0f);
+					}
 				}
 
 				MoveCharIndexAndColumn(lineNo, charIndex, column);
@@ -3024,6 +3288,12 @@ void TextEditor::ColorizeInternal()
 		const int to = std::min(mColorRangeMin + increment, mColorRangeMax);
 		ColorizeRange(mColorRangeMin, to);
 		mColorRangeMin = to;
+
+		// Re-apply semantic tokens after colorization overwrites them
+		if (!mSemanticTokens.empty())
+		{
+			ReapplySemanticTokens();
+		}
 
 		if (mColorRangeMax == mColorRangeMin)
 		{

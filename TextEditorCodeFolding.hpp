@@ -168,6 +168,15 @@ public:
      */
     [[nodiscard]] const auto& GetRegions() const { return regions_; }
 
+    /**
+     * @brief Set fold regions from LSP provider (bypasses internal detection)
+     * @param regions Vector of fold regions from LSP
+     */
+    void SetFoldRegions(std::vector<FoldRegion> regions) {
+        regions_ = std::move(regions);
+        RebuildCache();
+    }
+
     // Configuration accessors
     [[nodiscard]] auto& GetConfig() { return config_; }
     [[nodiscard]] const auto& GetConfig() const { return config_; }

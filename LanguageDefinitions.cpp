@@ -1,5 +1,6 @@
 #include "TextEditor.h"
 
+/*
 static bool TokenizeCStyleString(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end)
 {
 	const char* p = in_begin;
@@ -216,6 +217,7 @@ static bool TokenizeCStylePunctuation(const char* in_begin, const char* in_end, 
 
 	return false;
 }
+*/
 
 static bool TokenizeLuaStyleString(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end)
 {
@@ -416,6 +418,8 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Cpp()
 			langDef.mIdentifiers.insert(std::make_pair(std::string(k), id));
 		}
 
+		// Client-side tokenization disabled in favor of LSP semantic tokens
+		/*
 		langDef.mTokenize = [](const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex) -> bool
 		{
 			paletteIndex = PaletteIndex::Max;
@@ -442,6 +446,7 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Cpp()
 
 			return paletteIndex != PaletteIndex::Max;
 		};
+		*/
 
 		langDef.mCommentStart = "/*";
 		langDef.mCommentEnd = "*/";
@@ -644,6 +649,8 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::C()
 			langDef.mIdentifiers.insert(std::make_pair(std::string(k), id));
 		}
 
+		// Client-side tokenization disabled in favor of LSP semantic tokens
+		/*
 		langDef.mTokenize = [](const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex) -> bool
 		{
 			paletteIndex = PaletteIndex::Max;
@@ -670,6 +677,7 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::C()
 
 			return paletteIndex != PaletteIndex::Max;
 		};
+		*/
 
 		langDef.mCommentStart = "/*";
 		langDef.mCommentEnd = "*/";
