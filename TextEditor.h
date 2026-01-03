@@ -38,6 +38,25 @@ public:
 		PreprocIdentifier,
 		Comment,
 		MultiLineComment,
+		// Semantic Highlighting - Basic
+		Function,
+		Type,
+		Variable,
+		Namespace,
+		// Semantic Highlighting - Extended (for LSP modifiers)
+		Constant,           // const, constexpr, readonly variables
+		Parameter,          // Function parameters
+		EnumMember,         // Enum values
+		Property,           // Class/struct members
+		Method,             // Member functions (distinct from free functions)
+		StaticSymbol,       // Static members (variables or methods)
+		Deprecated,         // Deprecated symbols (rendered with strikethrough)
+		Macro,              // Preprocessor macros
+		Label,              // goto labels
+		Operator,           // Overloaded operators
+		TypeParameter,      // Template parameters
+		Concept,            // C++20 concepts
+
 		Background,
 		Cursor,
 		Selection,
@@ -59,101 +78,6 @@ public:
 	{
 		FirstVisibleLine, Centered, LastVisibleLine
 	};
-
-	inline void SetReadOnlyEnabled(bool aValue) { mReadOnly = aValue; }
-	inline bool IsReadOnlyEnabled() const { return mReadOnly; }
-	inline void SetAutoIndentEnabled(bool aValue) { mAutoIndent = aValue; }
-	inline bool IsAutoIndentEnabled() const { return mAutoIndent; }
-	inline void SetShowWhitespacesEnabled(bool aValue) { mShowWhitespaces = aValue; }
-	inline bool IsShowWhitespacesEnabled() const { return mShowWhitespaces; }
-	inline void SetShowLineNumbersEnabled(bool aValue) { mShowLineNumbers = aValue; }
-	inline bool IsShowLineNumbersEnabled() const { return mShowLineNumbers; }
-	inline void SetShortTabsEnabled(bool aValue) { mShortTabs = aValue; }
-	inline bool IsShortTabsEnabled() const { return mShortTabs; }
-	inline int GetLineCount() const { return mLines.size(); }
-	void SetPalette(PaletteId aValue);
-	void SetPalette(const Palette& aValue);
-	PaletteId GetPalette() const { return mPaletteId; }
-	void SetLanguageDefinition(LanguageDefinitionId aValue);
-	LanguageDefinitionId GetLanguageDefinition() const { return mLanguageDefinitionId; };
-	const char* GetLanguageDefinitionName() const;
-	void SetTabSize(int aValue);
-	inline int GetTabSize() const { return mTabSize; }
-	void SetLineSpacing(float aValue);
-	inline float GetLineSpacing() const { return mLineSpacing;  }
-
-	inline static void SetDefaultPalette(PaletteId aValue) { defaultPalette = aValue; }
-	inline static PaletteId GetDefaultPalette() { return defaultPalette; }
-
-	void SelectAll();
-	void SelectLine(int aLine);
-	void SelectRegion(int aStartLine, int aStartChar, int aEndLine, int aEndChar);
-	void SelectNextOccurrenceOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
-	void SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
-	bool AnyCursorHasSelection() const;
-	bool AllCursorsHaveSelection() const;
-	void ClearExtraCursors();
-	void ClearSelections();
-	void SetCursorPosition(int aLine, int aCharIndex);
-	inline void GetCursorPosition(int& outLine, int& outColumn) const
-	{
-		auto coords = GetSanitizedCursorCoordinates();
-		outLine = coords.mLine;
-		outColumn = coords.mColumn;
-	}
-	int GetFirstVisibleLine();
-	int GetLastVisibleLine();
-	void SetViewAtLine(int aLine, SetViewAtLineMode aMode);
-
-	void Copy();
-	void Cut();
-	void Paste();
-	void Undo(int aSteps = 1);
-	void Redo(int aSteps = 1);
-	inline bool CanUndo() const { return !mReadOnly && mUndoIndex > 0; };
-	inline bool CanRedo() const { return !mReadOnly && mUndoIndex < (int)mUndoBuffer.size(); };
-	inline int GetUndoIndex() const { return mUndoIndex; };
-
-	void SetText(const std::string& aText);
-	std::string GetText() const;
-
-	void SetTextLines(const std::vector<std::string>& aLines);
-	std::vector<std::string> GetTextLines() const;
-	std::string GetSelectedText(int aCursor = -1) const;
-	bool ReplaceRange(int aStartLine, int aStartChar, int aEndLine, int aEndChar, const char* aText, int aCursor = -1);
-
-	struct Highlight
-	{
-		int mStartLine = 0;
-		int mStartCharIndex = 0;
-		int mEndLine = 0;
-		int mEndCharIndex = 0;
-		ImU32 mColor = 0;
-	};
-
-	void SetHighlights(const std::vector<Highlight>& aHighlights);
-	void ClearHighlights();
-	inline const std::vector<Highlight>& GetHighlights() const { return mHighlights; }
-
-	enum class UnderlineStyle
-	{
-		Solid,
-		Wavy
-	};
-
-	struct Underline
-	{
-		int mStartLine = 0;
-		int mStartColumn = 0;
-		int mEndLine = 0;
-		int mEndColumn = 0;
-		ImU32 mColor = 0;
-		UnderlineStyle mStyle = UnderlineStyle::Wavy;
-	};
-
-	void SetUnderlines(const std::vector<Underline>& aUnderlines);
-	void ClearUnderlines();
-	inline const std::vector<Underline>& GetUnderlines() const { return mUnderlines; }
 
 	// Represents a character coordinate from the user's point of view,
 	// i. e. consider an uniform grid (assuming fixed-width font) on the
@@ -226,8 +150,150 @@ public:
 		}
 	};
 
+	inline void SetReadOnlyEnabled(bool aValue) { mReadOnly = aValue; }
+	inline bool IsReadOnlyEnabled() const { return mReadOnly; }
+	inline void SetAutoIndentEnabled(bool aValue) { mAutoIndent = aValue; }
+	inline bool IsAutoIndentEnabled() const { return mAutoIndent; }
+	inline void SetShowWhitespacesEnabled(bool aValue) { mShowWhitespaces = aValue; }
+	inline bool IsShowWhitespacesEnabled() const { return mShowWhitespaces; }
+	inline void SetShowLineNumbersEnabled(bool aValue) { mShowLineNumbers = aValue; }
+	inline bool IsShowLineNumbersEnabled() const { return mShowLineNumbers; }
+	inline void SetShortTabsEnabled(bool aValue) { mShortTabs = aValue; }
+	inline bool IsShortTabsEnabled() const { return mShortTabs; }
+	inline int GetLineCount() const { return mLines.size(); }
+	void SetPalette(PaletteId aValue);
+	void SetPalette(const Palette& aValue);
+	PaletteId GetPalette() const { return mPaletteId; }
+	void SetLanguageDefinition(LanguageDefinitionId aValue);
+	LanguageDefinitionId GetLanguageDefinition() const { return mLanguageDefinitionId; };
+	const char* GetLanguageDefinitionName() const;
+	void SetTabSize(int aValue);
+	inline int GetTabSize() const { return mTabSize; }
+	void SetLineSpacing(float aValue);
+	inline float GetLineSpacing() const { return mLineSpacing;  }
+
+	inline static void SetDefaultPalette(PaletteId aValue) { defaultPalette = aValue; }
+	inline static PaletteId GetDefaultPalette() { return defaultPalette; }
+
+	void SelectAll();
+	void SelectLine(int aLine);
+	void SelectRegion(int aStartLine, int aStartChar, int aEndLine, int aEndChar);
+	void SelectNextOccurrenceOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
+	void SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
+	bool AnyCursorHasSelection() const;
+	bool AllCursorsHaveSelection() const;
+	void ClearExtraCursors();
+	void ClearSelections();
+	void SetCursorPosition(int aLine, int aCharIndex);
+	inline void GetCursorPosition(int& outLine, int& outColumn) const
+	{
+		auto coords = GetSanitizedCursorCoordinates();
+		outLine = coords.mLine;
+		outColumn = coords.mColumn;
+	}
+	int GetFirstVisibleLine();
+	int GetLastVisibleLine();
+	void SetViewAtLine(int aLine, SetViewAtLineMode aMode);
+
+	void Copy();
+	void Cut();
+	void Paste();
+	void Undo(int aSteps = 1);
+	void Redo(int aSteps = 1);
+	inline bool CanUndo() const { return !mReadOnly && mUndoIndex > 0; };
+	inline bool CanRedo() const { return !mReadOnly && mUndoIndex < (int)mUndoBuffer.size(); };
+	inline int GetUndoIndex() const { return mUndoIndex; };
+
+	void SetText(const std::string& aText);
+	std::string GetText() const;
+
+	void SetTextLines(const std::vector<std::string>& aLines);
+	std::vector<std::string> GetTextLines() const;
+	std::string GetSelectedText(int aCursor = -1) const;
+	/**
+	 * @brief Get selection start for a cursor (or the active cursor).
+	 */
+	inline Coordinates GetSelectionStart(int aCursor = -1) const
+	{
+		int cursor = (aCursor >= 0) ? aCursor : mState.mCurrentCursor;
+		if (cursor < 0 || cursor >= (int)mState.mCursors.size())
+			return Coordinates::Invalid();
+		return mState.mCursors[cursor].GetSelectionStart();
+	}
+	/**
+	 * @brief Get selection end for a cursor (or the active cursor).
+	 */
+	inline Coordinates GetSelectionEnd(int aCursor = -1) const
+	{
+		int cursor = (aCursor >= 0) ? aCursor : mState.mCurrentCursor;
+		if (cursor < 0 || cursor >= (int)mState.mCursors.size())
+			return Coordinates::Invalid();
+		return mState.mCursors[cursor].GetSelectionEnd();
+	}
+	bool ReplaceRange(int aStartLine, int aStartChar, int aEndLine, int aEndChar, const char* aText, int aCursor = -1);
+
+	struct Highlight
+	{
+		int mStartLine = 0;
+		int mStartCharIndex = 0;
+		int mEndLine = 0;
+		int mEndCharIndex = 0;
+		ImU32 mColor = 0;
+	};
+
+	void SetHighlights(const std::vector<Highlight>& aHighlights);
+	void ClearHighlights();
+	inline const std::vector<Highlight>& GetHighlights() const { return mHighlights; }
+
+	enum class UnderlineStyle
+	{
+		Solid,
+		Wavy
+	};
+
+	enum class DiagnosticSeverity
+	{
+		None = 0,
+		Error = 1,
+		Warning = 2,
+		Information = 3,
+		Hint = 4
+	};
+
+	struct Underline
+	{
+		int mStartLine = 0;
+		int mStartColumn = 0;
+		int mEndLine = 0;
+		int mEndColumn = 0;
+		ImU32 mColor = 0;
+		UnderlineStyle mStyle = UnderlineStyle::Wavy;
+		DiagnosticSeverity mSeverity = DiagnosticSeverity::None; // For gutter icons
+	};
+
+	struct SemanticToken
+	{
+		int mLine = 0;
+		int mStartChar = 0;
+		int mLength = 0;
+		std::string mType;
+		std::vector<std::string> mModifiers;
+	};
+
+	void SetUnderlines(const std::vector<Underline>& aUnderlines);
+	void ClearUnderlines();
+	inline const std::vector<Underline>& GetUnderlines() const { return mUnderlines; }
+
+	void SetSemanticTokens(const std::vector<SemanticToken>& aTokens);
+	void ClearSemanticTokens();
+	void ReapplySemanticTokens(); // Re-apply stored tokens (call after colorization)
+
 	// Convert screen position to text coordinates (for hover tooltips, etc.)
 	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber = nullptr) const;
+	// Convert text coordinates to screen position (for inlay hints, overlays, etc.)
+	ImVec2 CoordinatesToScreenPos(const Coordinates& aPosition) const;
+	// Line height in pixels for the current font/spacing.
+	float GetLineHeight() const;
 
 	// Convert character index (byte offset) to visual column (accounts for tabs)
 	int CharacterIndexToColumn(int aLine, int aCharIndex) const;
@@ -242,6 +308,10 @@ public:
 
 	void ImGuiDebugPanel(const std::string& panelName = "Debug");
 	void UnitTests();
+
+	void SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor = -1);
+	void SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor = -1);
+
 
 private:
 	// ------------- Generic utils ------------- //
@@ -278,9 +348,9 @@ private:
 	{
 		Coordinates mInteractiveStart = { 0, 0 };
 		Coordinates mInteractiveEnd = { 0, 0 };
-		inline Coordinates GetSelectionStart() const { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
-		inline Coordinates GetSelectionEnd() const { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
-		inline bool HasSelection() const { return mInteractiveStart != mInteractiveEnd; }
+		[[nodiscard]] auto GetSelectionStart() const -> Coordinates { return mInteractiveStart < mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		[[nodiscard]] auto GetSelectionEnd() const -> Coordinates { return mInteractiveStart > mInteractiveEnd ? mInteractiveStart : mInteractiveEnd; }
+		[[nodiscard]] auto HasSelection() const -> bool { return mInteractiveStart != mInteractiveEnd; }
 	};
 
 	struct EditorState // state to be restored with undo/redo
@@ -289,7 +359,7 @@ private:
 		int mLastAddedCursor = 0;
 		std::vector<Cursor> mCursors = { {{0,0}} };
 		void AddCursor();
-		int GetLastAddedCursorIndex();
+		auto GetLastAddedCursorIndex() -> int;
 		void SortCursorsFromTopToBottom();
 	};
 
@@ -299,7 +369,7 @@ private:
 		std::string mDeclaration;
 	};
 
-	typedef std::unordered_map<std::string, Identifier> Identifiers;
+	using Identifiers = std::unordered_map<std::string, Identifier>;
 	struct Glyph
 	{
 		char mChar;
@@ -307,17 +377,23 @@ private:
 		bool mComment : 1;
 		bool mMultiLineComment : 1;
 		bool mPreprocessor : 1;
+		// Style flags for semantic highlighting (from LSP modifiers)
+		bool mItalic : 1;        // For abstract, virtual, parameter
+		bool mBold : 1;          // For declaration, definition
+		bool mUnderline : 1;     // For static symbols
+		bool mStrikethrough : 1; // For deprecated symbols
 
 		Glyph(char aChar, PaletteIndex aColorIndex) : mChar(aChar), mColorIndex(aColorIndex),
-			mComment(false), mMultiLineComment(false), mPreprocessor(false) {}
+			mComment(false), mMultiLineComment(false), mPreprocessor(false),
+			mItalic(false), mBold(false), mUnderline(false), mStrikethrough(false) {}
 	};
 
-	typedef std::vector<Glyph> Line;
+	using Line = std::vector<Glyph>;
 
 	struct LanguageDefinition
 	{
-		typedef std::pair<std::string, PaletteIndex> TokenRegexString;
-		typedef bool(*TokenizeCallback)(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex);
+		using TokenRegexString = std::pair<std::string, PaletteIndex>;
+		using TokenizeCallback = bool(*)(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex);
 
 		std::string mName;
 		std::unordered_set<std::string> mKeywords;
@@ -371,15 +447,15 @@ private:
 		EditorState mAfter;
 	};
 
-	std::string GetText(const Coordinates& aStart, const Coordinates& aEnd) const;
-	std::string GetClipboardText() const;
+	[[nodiscard]] auto GetText(const Coordinates& aStart, const Coordinates& aEnd) const -> std::string;
+	[[nodiscard]] auto GetClipboardText() const -> std::string;
 
 	void SetCursorPosition(const Coordinates& aPosition, int aCursor = -1, bool aClearSelection = true);
 
 	int InsertTextAt(Coordinates& aWhere, const char* aValue);
 	void InsertTextAtCursor(const char* aValue, int aCursor = -1);
 
-	enum class MoveDirection { Right = 0, Left = 1, Up = 2, Down = 3 };
+	enum class MoveDirection : std::uint8_t { Right = 0, Left = 1, Up = 2, Down = 3 };
 	bool Move(int& aLine, int& aCharIndex, bool aLeft = false, bool aLockLine = false) const;
 	void MoveCharIndexAndColumn(int aLine, int& aCharIndex, int& aColumn) const;
 	void MoveCoords(Coordinates& aCoords, MoveDirection aDirection, bool aWordMode = false, int aLineCount = 1) const;
@@ -395,9 +471,6 @@ private:
 	void EnterCharacter(ImWchar aChar, bool aShift);
 	void Backspace(bool aWordMode = false);
 	void Delete(bool aWordMode = false, const EditorState* aEditorState = nullptr);
-
-	void SetSelection(Coordinates aStart, Coordinates aEnd, int aCursor = -1);
-	void SetSelection(int aStartLine, int aStartChar, int aEndLine, int aEndChar, int aCursor = -1);
 
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
 	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
@@ -502,6 +575,7 @@ private:
 	const LanguageDefinition* mLanguageDefinition = nullptr;
 	std::vector<Highlight> mHighlights;
 	std::vector<Underline> mUnderlines;
+	std::vector<SemanticToken> mSemanticTokens; // Stored for re-application after colorization
 
 	inline bool IsHorizontalScrollbarVisible() const { return mCurrentSpaceWidth > mContentWidth; }
 	inline bool IsVerticalScrollbarVisible() const { return mCurrentSpaceHeight > mContentHeight; }
