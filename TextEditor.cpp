@@ -2497,15 +2497,50 @@ void TextEditor::Render(bool aParentIsFocused)
 		float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
 		const float underlineThickness = Max(1.0f, fontSize * 0.09f);
 		// Smooth sine wave parameters for elegant squiggly underlines
-		const float waveAmplitude = Max(1.5f, fontSize * 0.14f);
-		const float waveFrequency = 0.15f; // Lower = smoother waves
-		const float waveSampleStep = 1.5f; // Pixel step for smooth curve
+		const float waveAmplitude = Max(1.0f, fontSize * 0.11f);
+		const float waveWavelength = Max(spaceSize * 1.8f, fontSize * 1.2f);
+		const float waveFrequency = 1.0f / waveWavelength;
+		const float waveSampleStep = Max(0.75f, Max(spaceSize * 0.10f, fontSize * 0.05f));
 
-		auto drawUnderline = [&](float startX, float endX, float y, ImU32 color, UnderlineStyle style)
+		auto drawUnderline = [&](float startX, float endX, float y, ImU32 color, UnderlineStyle style, DiagnosticSeverity severity)
 		{
 			if (endX <= startX)
 				return;
-			if (style == UnderlineStyle::Solid)
+
+			auto apply_alpha_mul = [](ImU32 in, float multiplier) -> ImU32
+			{
+				const auto r = (in >> IM_COL32_R_SHIFT) & 0xFFu;
+				const auto g = (in >> IM_COL32_G_SHIFT) & 0xFFu;
+				const auto b = (in >> IM_COL32_B_SHIFT) & 0xFFu;
+				const auto a = (in >> IM_COL32_A_SHIFT) & 0xFFu;
+				const float clamped = std::clamp(multiplier, 0.0f, 1.0f);
+				const auto new_a = static_cast<ImU32>(static_cast<float>(a) * clamped);
+				return IM_COL32(r, g, b, new_a);
+			};
+
+			UnderlineStyle final_style = style;
+			switch (severity)
+			{
+			case DiagnosticSeverity::Error:
+				final_style = UnderlineStyle::Wavy;
+				break;
+			case DiagnosticSeverity::Warning:
+				final_style = UnderlineStyle::Solid;
+				color = apply_alpha_mul(color, 0.85f);
+				break;
+			case DiagnosticSeverity::Information:
+				final_style = UnderlineStyle::Solid;
+				color = apply_alpha_mul(color, 0.55f);
+				break;
+			case DiagnosticSeverity::Hint:
+				final_style = UnderlineStyle::Solid;
+				color = apply_alpha_mul(color, 0.45f);
+				break;
+			case DiagnosticSeverity::None:
+				break;
+			}
+
+			if (final_style == UnderlineStyle::Solid)
 			{
 				drawList->AddLine(ImVec2(startX, y), ImVec2(endX, y), color, underlineThickness);
 				return;
@@ -2860,7 +2895,8 @@ void TextEditor::Render(bool aParentIsFocused)
 						lineStartScreenPos.x + mTextStart + endX,
 						underlineY,
 						underlineColor,
-						underline.mStyle);
+						underline.mStyle,
+						underline.mSeverity);
 				}
 			}
 		}
