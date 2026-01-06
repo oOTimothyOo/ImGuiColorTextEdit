@@ -312,7 +312,9 @@ TextEditorCodeFolding::DetectIndentationRegions(const std::vector<std::string>& 
         for (int j = i + 1; j < static_cast<int>(lines.size()); ++j)
         {
             // Skip empty lines
-            if (lines[j].empty() || std::all_of(lines[j].begin(), lines[j].end(), ::isspace))
+            if (lines[j].empty() ||
+                std::all_of(lines[j].begin(), lines[j].end(),
+                            [](unsigned char ch) { return std::isspace(ch) != 0; }))
                 continue;
 
             int next_indent = GetIndentLevel(lines[j]);
@@ -359,7 +361,7 @@ bool TextEditorCodeFolding::IsOpeningBraceLine(const std::string& line) const
 {
     // Simple heuristic: line ends with '{'
     auto it = std::find_if(line.rbegin(), line.rend(),
-                          [](char ch) { return !std::isspace(ch); });
+                          [](unsigned char ch) { return std::isspace(ch) == 0; });
 
     return it != line.rend() && *it == '{';
 }

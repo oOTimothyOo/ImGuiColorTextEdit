@@ -12,6 +12,26 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
     bracket_cache_.clear();
 
     auto lines = editor.GetTextLines();
+    std::vector<int> indent_columns;
+    indent_columns.reserve(lines.size());
+    const int tab_size = editor.GetTabSize();
+    for (int line = 0; line < static_cast<int>(lines.size()); ++line) {
+        const auto& line_text = lines[static_cast<std::size_t>(line)];
+        int indent_column = 0;
+        for (char ch : line_text) {
+            if (ch == ' ' || ch == '\t') {
+                if (ch == '\t') {
+                    const int advance = tab_size - (indent_column % tab_size);
+                    indent_column += advance;
+                } else {
+                    ++indent_column;
+                }
+            } else {
+                break;
+            }
+        }
+        indent_columns.push_back(indent_column);
+    }
     std::stack<BracketPair> stack;
 
     for (int line = 0; line < static_cast<int>(lines.size()); ++line)
@@ -28,6 +48,7 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
                 BracketPair pair;
                 pair.open_line = line;
                 pair.open_column = col;
+                pair.open_indent_column = indent_columns[static_cast<std::size_t>(line)];
                 pair.open_char = ch;
                 pair.depth = static_cast<int>(stack.size());
 
@@ -107,6 +128,21 @@ void TextEditorBracketMatcher::RenderBracketGuides(ImDrawList* draw_list,
     int first_visible = const_cast<TextEditor&>(editor).GetFirstVisibleLine();
     int last_visible = const_cast<TextEditor&>(editor).GetLastVisibleLine();
 
+    // Get the screen position of the first visible line for proper Y coordinate calculation
+    ImVec2 first_line_pos = const_cast<TextEditor&>(editor).CoordinatesToScreenPos(
+        TextEditor::Coordinates{first_visible, 0}
+    );
+
+    // Calculate character width for proper X positioning
+    float char_width = ImGui::GetFont()->CalcTextSizeA(
+        ImGui::GetFontSize(),
+        FLT_MAX,
+        -1.0f,
+        "#",
+        nullptr,
+        nullptr
+    ).x;
+
     // Draw vertical lines for bracket pairs that span multiple lines
     for (const auto& pair : bracket_pairs_)
     {
@@ -114,19 +150,27 @@ void TextEditorBracketMatcher::RenderBracketGuides(ImDrawList* draw_list,
         if (pair.close_line <= pair.open_line)
             continue;
 
+        if (pair.open_char != '{' || pair.close_char != '}')
+            continue;
+
         if (pair.close_line < first_visible || pair.open_line > last_visible)
             continue;
 
-        // Calculate X position based on indentation (column of opening bracket)
-        float x = text_start_x + pair.open_column * ImGui::GetFontSize() * 0.5f;
+        // Calculate X position based on visual indentation column of opening line
+        float x = text_start_x + static_cast<float>(pair.open_indent_column) * char_width;
 
-        // Calculate Y positions
-        float y_start = (pair.open_line - first_visible) * line_height;
-        float y_end = (pair.close_line - first_visible + 1) * line_height;
+        // Calculate Y positions relative to screen coordinates
+        int draw_start_line = std::max(pair.open_line, first_visible);
+        int draw_end_line = std::min(pair.close_line, last_visible);
 
-        // Draw the guide line
+        float y_start = first_line_pos.y + static_cast<float>(draw_start_line - first_visible) * line_height;
+        float y_end = first_line_pos.y + static_cast<float>(draw_end_line - first_visible + 1) * line_height;
+
+        // Draw the guide line with rainbow color based on depth
         ImU32 guide_color = GetColorForDepth(pair.depth);
-        guide_color = (guide_color & 0x00FFFFFF) | (config_.guide_color & 0xFF000000);  // Use guide alpha
+        // Apply configured alpha while preserving the rainbow color
+        ImU32 alpha = (config_.guide_color >> 24) & 0xFF;
+        guide_color = (guide_color & 0x00FFFFFF) | (alpha << 24);
 
         draw_list->AddLine(
             ImVec2(x, y_start),
