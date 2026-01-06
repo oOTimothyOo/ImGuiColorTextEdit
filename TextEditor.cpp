@@ -1907,12 +1907,12 @@ TextEditor::Coordinates TextEditor::FindWordStart(const Coordinates& aFrom) cons
 		charIndex--;
 
 	bool initialIsWordChar = CharIsWordChar(line[charIndex].mChar);
-	bool initialIsSpace = isspace(line[charIndex].mChar);
+	bool initialIsSpace = isspace(static_cast<unsigned char>(line[charIndex].mChar)) != 0;
 	char initialChar = line[charIndex].mChar;
 	while (Move(lineIndex, charIndex, true, true))
 	{
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
-		bool isSpace = isspace(line[charIndex].mChar);
+		bool isSpace = isspace(static_cast<unsigned char>(line[charIndex].mChar)) != 0;
 		if ((initialIsSpace && !isSpace) ||
 			(initialIsWordChar && !isWordChar) ||
 			(!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar))
@@ -1937,14 +1937,14 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 		return aFrom;
 
 	bool initialIsWordChar = CharIsWordChar(line[charIndex].mChar);
-	bool initialIsSpace = isspace(line[charIndex].mChar);
+	bool initialIsSpace = isspace(static_cast<unsigned char>(line[charIndex].mChar)) != 0;
 	char initialChar = line[charIndex].mChar;
 	while (Move(lineIndex, charIndex, false, true))
 	{
 		if (charIndex == static_cast<int>(line.size()))
 			break;
 		bool isWordChar = CharIsWordChar(line[charIndex].mChar);
-		bool isSpace = isspace(line[charIndex].mChar);
+		bool isSpace = isspace(static_cast<unsigned char>(line[charIndex].mChar)) != 0;
 		if ((initialIsSpace && !isSpace) ||
 			(initialIsWordChar && !isWordChar) ||
 			(!initialIsWordChar && !initialIsSpace && initialChar != line[charIndex].mChar))
@@ -3226,7 +3226,8 @@ void TextEditor::ColorizeInternal()
 				auto& g = line[currentIndex];
 				auto c = g.mChar;
 
-				if (c != mLanguageDefinition->mPreprocChar && !isspace(c))
+				if (c != mLanguageDefinition->mPreprocChar &&
+					isspace(static_cast<unsigned char>(c)) == 0)
 					firstChar = false;
 
 				if (currentIndex == (int)line.size() - 1 && line[line.size() - 1].mChar == '\\')

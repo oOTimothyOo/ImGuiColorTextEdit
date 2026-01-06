@@ -25,6 +25,7 @@ public:
     {
         int open_line = 0;
         int open_column = 0;
+        int open_indent_column = 0;
         int close_line = 0;
         int close_column = 0;
         int depth = 0;
