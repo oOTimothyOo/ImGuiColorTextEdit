@@ -200,4 +200,30 @@ void TextEditor::UnitTests()
 		assert(SanitizeCoordinates(Coordinates(0, 4)) == Coordinates(0, 4));
 		assert(SanitizeCoordinates(Coordinates(0, 5)) == Coordinates(0, 4));
 	}
+
+	// --- Coordinate Round Trip --- //
+	{
+		const ImVec2 prev_screen_pos = mEditorScreenPos;
+		const ImVec2 prev_char_advance = mCharAdvance;
+		const float prev_text_start = mTextStart;
+		const float prev_scroll_x = mScrollX;
+		const float prev_scroll_y = mScrollY;
+
+		mEditorScreenPos = ImVec2(100.0f, 200.0f);
+		mCharAdvance = ImVec2(8.0f, 16.0f);
+		mTextStart = 12.0f;
+		mScrollX = 24.0f;
+		mScrollY = 32.0f;
+
+		Coordinates original{0, 6};
+		ImVec2 screen = CoordinatesToScreenPos(original);
+		Coordinates round_trip = ScreenPosToCoordinates(screen);
+		assert(round_trip == original);
+
+		mEditorScreenPos = prev_screen_pos;
+		mCharAdvance = prev_char_advance;
+		mTextStart = prev_text_start;
+		mScrollX = prev_scroll_x;
+		mScrollY = prev_scroll_y;
+	}
 }

@@ -1,7 +1,4 @@
 #include "TextEditorBracketMatcher.hpp"
-#include "TextEditor.h"
-#include <stack>
-#include <algorithm>
 
 void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
 {
@@ -125,23 +122,9 @@ void TextEditorBracketMatcher::RenderBracketGuides(ImDrawList* draw_list,
     if (!config_.enabled || !config_.show_bracket_guides)
         return;
 
-    int first_visible = const_cast<TextEditor&>(editor).GetFirstVisibleLine();
-    int last_visible = const_cast<TextEditor&>(editor).GetLastVisibleLine();
-
-    // Get the screen position of the first visible line for proper Y coordinate calculation
-    ImVec2 first_line_pos = const_cast<TextEditor&>(editor).CoordinatesToScreenPos(
-        TextEditor::Coordinates{first_visible, 0}
-    );
-
-    // Calculate character width for proper X positioning
-    float char_width = ImGui::GetFont()->CalcTextSizeA(
-        ImGui::GetFontSize(),
-        FLT_MAX,
-        -1.0f,
-        "#",
-        nullptr,
-        nullptr
-    ).x;
+    const int first_visible = editor.GetFirstVisibleLine();
+    const int last_visible = editor.GetLastVisibleLine();
+    (void)text_start_x;
 
     // Draw vertical lines for bracket pairs that span multiple lines
     for (const auto& pair : bracket_pairs_)
@@ -156,15 +139,23 @@ void TextEditorBracketMatcher::RenderBracketGuides(ImDrawList* draw_list,
         if (pair.close_line < first_visible || pair.open_line > last_visible)
             continue;
 
-        // Calculate X position based on visual indentation column of opening line
-        float x = text_start_x + static_cast<float>(pair.open_indent_column) * char_width;
-
         // Calculate Y positions relative to screen coordinates
         int draw_start_line = std::max(pair.open_line, first_visible);
         int draw_end_line = std::min(pair.close_line, last_visible);
 
-        float y_start = first_line_pos.y + static_cast<float>(draw_start_line - first_visible) * line_height;
-        float y_end = first_line_pos.y + static_cast<float>(draw_end_line - first_visible + 1) * line_height;
+        const ImVec2 open_pos = editor.CoordinatesToScreenPos(
+            TextEditor::Coordinates{pair.open_line, pair.open_indent_column}
+        );
+        const ImVec2 start_pos = editor.CoordinatesToScreenPos(
+            TextEditor::Coordinates{draw_start_line, 0}
+        );
+        const ImVec2 end_pos = editor.CoordinatesToScreenPos(
+            TextEditor::Coordinates{draw_end_line, 0}
+        );
+
+        const float x = open_pos.x;
+        const float y_start = start_pos.y;
+        const float y_end = end_pos.y + line_height;
 
         // Draw the guide line with rainbow color based on depth
         ImU32 guide_color = GetColorForDepth(pair.depth);
