@@ -1,13 +1,16 @@
 #pragma once
 
+#include "TextEditor.h"
 #include "imgui.h"
-#include <vector>
-#include <array>
-#include <unordered_map>
-#include <optional>
 
-// Forward declaration
-class TextEditor;
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <stack>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 /**
  * @brief Bracket matching and colorization for TextEditor

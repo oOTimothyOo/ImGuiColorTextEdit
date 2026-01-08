@@ -1,15 +1,22 @@
 #pragma once
 
-#include <cmath>
-#include <cassert>
-#include <iostream>
-#include <string>
-#include <vector>
+#include <algorithm>
 #include <array>
-#include <memory>
-#include <unordered_set>
-#include <unordered_map>
+#include <cassert>
+#include <cmath>
+#include <functional>
+#include <iostream>
 #include <map>
+#include <memory>
+#include <optional>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include <boost/regex.hpp>
 #include "imgui.h"
 
 class IMGUI_API TextEditor
@@ -160,6 +167,17 @@ public:
 	inline bool IsShowLineNumbersEnabled() const { return mShowLineNumbers; }
 	inline void SetShortTabsEnabled(bool aValue) { mShortTabs = aValue; }
 	inline bool IsShortTabsEnabled() const { return mShortTabs; }
+
+	/**
+	 * @brief Set whether Ctrl+Click should trigger go-to-definition instead of adding cursors.
+	 *
+	 * When enabled (default true for IDE mode), Ctrl+Click will not add cursors.
+	 * Instead, it is handled externally by the LSP integration for navigation.
+	 * Alt+Click can still be used for multi-cursor editing.
+	 */
+	inline void SetCtrlClickForNavigation(bool aValue) { mCtrlClickForNavigation = aValue; }
+	inline bool IsCtrlClickForNavigation() const { return mCtrlClickForNavigation; }
+
 	inline int GetLineCount() const { return mLines.size(); }
 	void SetPalette(PaletteId aValue);
 	void SetPalette(const Palette& aValue);
@@ -191,8 +209,8 @@ public:
 		outLine = coords.mLine;
 		outColumn = coords.mColumn;
 	}
-	int GetFirstVisibleLine();
-	int GetLastVisibleLine();
+	int GetFirstVisibleLine() const;
+	int GetLastVisibleLine() const;
 	void SetViewAtLine(int aLine, SetViewAtLineMode aMode);
 
 	void Copy();
@@ -294,6 +312,10 @@ public:
 	ImVec2 CoordinatesToScreenPos(const Coordinates& aPosition) const;
 	// Line height in pixels for the current font/spacing.
 	float GetLineHeight() const;
+	/**
+	 * @brief Get the pixel offset where text content begins (after the gutter).
+	 */
+	[[nodiscard]] float GetTextStart() const { return mTextStart; }
 
 	// Convert character index (byte offset) to visual column (accounts for tabs)
 	int CharacterIndexToColumn(int aLine, int aCharIndex) const;
@@ -304,7 +326,72 @@ public:
 	// Get current scroll position (for detecting scroll changes)
 	ImVec2 GetScrollPosition() const { return ImVec2(mScrollX, mScrollY); }
 
-	bool Render(const char* aTitle, bool aParentIsFocused = false, const ImVec2& aSize = ImVec2(), bool aBorder = false);
+	// =========================================================================
+	// Link Hover Support (for Ctrl+Click navigation)
+	// =========================================================================
+
+	/**
+	 * @brief Represents a clickable link region (e.g., for Ctrl+Click navigation).
+	 */
+	struct LinkHighlight
+	{
+		int mLine = 0;
+		int mStartCharIndex = 0;
+		int mEndCharIndex = 0;
+		ImU32 mColor = 0;
+		bool mUnderline = true;
+	};
+
+	/**
+	 * @brief Set the current link highlight (word under cursor when Ctrl is held).
+	 *
+	 * Pass empty optional to clear the link highlight.
+	 */
+	void SetLinkHighlight(const std::optional<LinkHighlight>& aLink);
+
+	/**
+	 * @brief Clear the link highlight.
+	 */
+	void ClearLinkHighlight();
+
+	/**
+	 * @brief Check if there is an active link highlight.
+	 */
+	[[nodiscard]] bool HasLinkHighlight() const { return mLinkHighlight.has_value(); }
+
+	/**
+	 * @brief Get the current link highlight if any.
+	 */
+	[[nodiscard]] const std::optional<LinkHighlight>& GetLinkHighlight() const { return mLinkHighlight; }
+
+	/**
+	 * @brief Find word boundaries at a given position.
+	 *
+	 * Returns the start and end character indices of the word at the position,
+	 * or {index, index} when the position is not on an identifier.
+	 * Useful for highlighting the entire word when Ctrl+hovering for navigation.
+	 */
+	[[nodiscard]] std::pair<int, int> GetWordBoundaries(int aLine, int aCharIndex) const;
+
+	/**
+	 * @brief Callback invoked inside the editor child window after rendering text.
+	 */
+	using render_callback = std::function<void()>;
+
+	/**
+	 * @brief Render the editor inside a child window.
+	 *
+	 * @param aTitle Child window title/ID.
+	 * @param aParentIsFocused True if the parent window is focused.
+	 * @param aSize Requested child size (0 = auto).
+	 * @param aBorder Whether to draw a border around the child.
+	 * @param aCallback Optional callback invoked before EndChild().
+	 */
+	bool Render(const char* aTitle,
+	            bool aParentIsFocused = false,
+	            const ImVec2& aSize = ImVec2(),
+	            bool aBorder = false,
+	            const render_callback& aCallback = {});
 
 	void ImGuiDebugPanel(const std::string& panelName = "Debug");
 	void UnitTests();
@@ -490,6 +577,7 @@ private:
 	// ScreenPosToCoordinates moved to public section
 	Coordinates FindWordStart(const Coordinates& aFrom) const;
 	Coordinates FindWordEnd(const Coordinates& aFrom) const;
+	int GetCharacterIndexFromColumn(const Coordinates& aCoordinates, bool aLeftLean) const;
 	int GetCharacterIndexL(const Coordinates& aCoordinates) const;
 	int GetCharacterIndexR(const Coordinates& aCoordinates) const;
 	int GetCharacterColumn(int aLine, int aIndex) const;
@@ -534,6 +622,7 @@ private:
 	bool mShowWhitespaces = true;
 	bool mShowLineNumbers = true;
 	bool mShortTabs = false;
+	bool mCtrlClickForNavigation = true; // When true, Ctrl+Click does not add cursors (for LSP navigation)
 
 	int mSetViewAtLine = -1;
 	SetViewAtLineMode mSetViewAtLineMode;
@@ -558,7 +647,7 @@ private:
 	float mContentHeight = 0.0f;
 	float mScrollX = 0.0f;
 	float mScrollY = 0.0f;
-	ImVec2 mEditorScreenPos = ImVec2(0.0f, 0.0f);  // Cached screen position of the editor content area
+	ImVec2 mEditorScreenPos = ImVec2(0.0f, 0.0f);  // Cached screen position of content origin (scroll neutral)
 	bool mPanning = false;
 	bool mDraggingSelection = false;
 	ImVec2 mLastMousePos;
@@ -576,6 +665,7 @@ private:
 	std::vector<Highlight> mHighlights;
 	std::vector<Underline> mUnderlines;
 	std::vector<SemanticToken> mSemanticTokens; // Stored for re-application after colorization
+	std::optional<LinkHighlight> mLinkHighlight; // Ctrl+hover link highlight
 
 	inline bool IsHorizontalScrollbarVisible() const { return mCurrentSpaceWidth > mContentWidth; }
 	inline bool IsVerticalScrollbarVisible() const { return mCurrentSpaceHeight > mContentHeight; }

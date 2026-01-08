@@ -1,14 +1,7 @@
-#include <algorithm>
-#include <string>
-#include <set>
-#include <boost/regex.hpp>
-
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "TextEditor.h"
 
 #define IMGUI_SCROLLBAR_WIDTH 14.0f
-#define POS_TO_COORDS_COLUMN_OFFSET 0.33f
-#define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.h" // for imGui::GetCurrentWindow()
 
 
 struct TextEditor::RegexList {
@@ -208,12 +201,12 @@ void TextEditor::SetCursorPosition(int aLine, int aCharIndex)
 	SetCursorPosition({ aLine, GetCharacterColumn(aLine, aCharIndex) }, -1, true);
 }
 
-int TextEditor::GetFirstVisibleLine()
+int TextEditor::GetFirstVisibleLine() const
 {
 	return mFirstVisibleLine;
 }
 
-int TextEditor::GetLastVisibleLine()
+int TextEditor::GetLastVisibleLine() const
 {
 	return mLastVisibleLine;
 }
@@ -427,7 +420,11 @@ std::vector<std::string> TextEditor::GetTextLines() const
 	return result;
 }
 
-bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2& aSize, bool aBorder)
+bool TextEditor::Render(const char* aTitle,
+                        bool aParentIsFocused,
+                        const ImVec2& aSize,
+                        bool aBorder,
+                        const render_callback& aCallback)
 {
 	if (mCursorPositionChanged)
 		OnCursorPositionChanged();
@@ -443,6 +440,11 @@ bool TextEditor::Render(const char* aTitle, bool aParentIsFocused, const ImVec2&
 	HandleMouseInputs();
 	ColorizeInternal();
 	Render(aParentIsFocused);
+
+	if (aCallback)
+	{
+		aCallback();
+	}
 
 	ImGui::EndChild();
 
@@ -697,6 +699,57 @@ void TextEditor::SetHighlights(const std::vector<Highlight>& aHighlights)
 void TextEditor::ClearHighlights()
 {
 	mHighlights.clear();
+}
+
+void TextEditor::SetLinkHighlight(const std::optional<LinkHighlight>& aLink)
+{
+	mLinkHighlight = aLink;
+}
+
+void TextEditor::ClearLinkHighlight()
+{
+	mLinkHighlight.reset();
+}
+
+std::pair<int, int> TextEditor::GetWordBoundaries(int aLine, int aCharIndex) const
+{
+	if (aLine < 0 || aLine >= static_cast<int>(mLines.size()) || aCharIndex < 0)
+		return {0, 0};
+
+	const auto& line = mLines[static_cast<std::size_t>(aLine)];
+	if (line.empty() || aCharIndex >= static_cast<int>(line.size()))
+		return {0, 0};
+
+	// Check if we're on a word character
+	auto isWordChar = [](char c) -> bool {
+		return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+	};
+
+	// Get the character at the position - need to handle UTF-8 properly
+	// For now, treat each byte as a character (this works for ASCII identifiers)
+	char c = line[static_cast<std::size_t>(aCharIndex)].mChar;
+	if (!isWordChar(c))
+		return {aCharIndex, aCharIndex}; // Not on a word
+
+	// Find start of word
+	int start = aCharIndex;
+	while (start > 0) {
+		char prev = line[static_cast<std::size_t>(start - 1)].mChar;
+		if (!isWordChar(prev))
+			break;
+		--start;
+	}
+
+	// Find end of word
+	int end = aCharIndex;
+	while (end < static_cast<int>(line.size())) {
+		char next = line[static_cast<std::size_t>(end)].mChar;
+		if (!isWordChar(next))
+			break;
+		++end;
+	}
+
+	return {start, end};
 }
 
 bool TextEditor::ReplaceRange(int aStartLine, int aStartChar, int aEndLine, int aEndChar, const char* aText, int aCursor)
@@ -1852,17 +1905,19 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 {
 	// Use cached screen position from last Render() call
 	// This is more reliable than GetCursorScreenPos() which depends on current ImGui context
-	ImVec2 origin = mEditorScreenPos;
-	ImVec2 local(aPosition.x - origin.x + 3.0f, aPosition.y - origin.y);
+	const ImVec2 origin = mEditorScreenPos;
+	const ImVec2 local(aPosition.x - origin.x, aPosition.y - origin.y);
 
 	if (isOverLineNumber != nullptr)
 		*isOverLineNumber = local.x < mTextStart;
 
+	const float text_x = local.x + mScrollX - mTextStart;
+	const float text_y = local.y + mScrollY;
+
 	Coordinates out = {
-		Max(0, (int)floor(local.y / mCharAdvance.y)),
-		Max(0, (int)floor((local.x - mTextStart) / mCharAdvance.x))
+		Max(0, (int)floor(text_y / mCharAdvance.y)),
+		Max(0, (int)floor(text_x / mCharAdvance.x))
 	};
-	out.mColumn = Max(0, (int)floor((local.x - mTextStart + POS_TO_COORDS_COLUMN_OFFSET * mCharAdvance.x) / mCharAdvance.x));
 
 	return SanitizeCoordinates(out);
 }
@@ -1953,43 +2008,37 @@ TextEditor::Coordinates TextEditor::FindWordEnd(const Coordinates& aFrom) const
 	return { lineIndex, GetCharacterColumn(aFrom.mLine, charIndex) };
 }
 
-int TextEditor::GetCharacterIndexL(const Coordinates& aCoords) const
+int TextEditor::GetCharacterIndexFromColumn(const Coordinates& aCoords, bool aLeftLean) const
 {
 	if (aCoords.mLine >= static_cast<int>(mLines.size()))
 		return -1;
 
-	auto& line = mLines[aCoords.mLine];
-	int c = 0;
-	int i = 0;
-	int tabCoordsLeft = 0;
+	const auto& line = mLines[aCoords.mLine];
+	if (line.empty() || aCoords.mColumn <= 0)
+		return 0;
 
-	for (; i < static_cast<int>(line.size()) && c < aCoords.mColumn;)
+	int column = 0;
+	int index = 0;
+	const int line_size = static_cast<int>(line.size());
+
+	while (index < line_size && column < aCoords.mColumn)
 	{
-		if (line[i].mChar == '\t')
-		{
-			if (tabCoordsLeft == 0)
-				tabCoordsLeft = TabSizeAtColumn(c);
-			if (tabCoordsLeft > 0)
-				tabCoordsLeft--;
-			c++;
-		}
-		else
-			++c;
-		if (tabCoordsLeft == 0)
-			i += UTF8CharLength(line[i].mChar);
+		const int prev_index = index;
+		MoveCharIndexAndColumn(aCoords.mLine, index, column);
+		if (column > aCoords.mColumn)
+			return aLeftLean ? prev_index : index;
 	}
-	return i;
+	return index;
+}
+
+int TextEditor::GetCharacterIndexL(const Coordinates& aCoords) const
+{
+	return GetCharacterIndexFromColumn(aCoords, true);
 }
 
 int TextEditor::GetCharacterIndexR(const Coordinates& aCoords) const
 {
-	if (aCoords.mLine >= static_cast<int>(mLines.size()))
-		return -1;
-	int c = 0;
-	int i = 0;
-	for (; i < static_cast<int>(mLines[aCoords.mLine].size()) && c < aCoords.mColumn;)
-		MoveCharIndexAndColumn(aCoords.mLine, i, c);
-	return i;
+	return GetCharacterIndexFromColumn(aCoords, false);
 }
 
 int TextEditor::GetCharacterColumn(int aLine, int aIndex) const
@@ -2375,37 +2424,51 @@ void TextEditor::HandleMouseInputs()
 
 			/*
 			Left mouse button triple click
+			When mCtrlClickForNavigation is true, use Alt for multi-cursor instead of Ctrl
 			*/
 
 			if (tripleClick)
 			{
-				if (ctrl)
+				// Skip Ctrl+triple-click when navigation mode is on (let LSP handle it)
+				if (ctrl && mCtrlClickForNavigation)
+					; // Do nothing, let LSP handle navigation
+				else if ((ctrl && !mCtrlClickForNavigation) || (alt && mCtrlClickForNavigation))
 					mState.AddCursor();
 				else
 					mState.mCurrentCursor = 0;
 
-				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
-				Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
-					Coordinates{ cursorCoords.mLine + 1, 0 } :
-					Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
-				SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
+				if (!ctrl || !mCtrlClickForNavigation) // Only select if not Ctrl+click in nav mode
+				{
+					Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
+					Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
+						Coordinates{ cursorCoords.mLine + 1, 0 } :
+						Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
+					SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
+				}
 
 				mLastClickTime = -1.0f;
 			}
 
 			/*
 			Left mouse button double click
+			When mCtrlClickForNavigation is true, use Alt for multi-cursor instead of Ctrl
 			*/
 
 			else if (doubleClick)
 			{
-				if (ctrl)
+				// Skip Ctrl+double-click when navigation mode is on (let LSP handle it)
+				if (ctrl && mCtrlClickForNavigation)
+					; // Do nothing, let LSP handle navigation
+				else if ((ctrl && !mCtrlClickForNavigation) || (alt && mCtrlClickForNavigation))
 					mState.AddCursor();
 				else
 					mState.mCurrentCursor = 0;
 
-				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
-				SetSelection(FindWordStart(cursorCoords), FindWordEnd(cursorCoords), mState.mCurrentCursor);
+				if (!ctrl || !mCtrlClickForNavigation) // Only select word if not Ctrl+click in nav mode
+				{
+					Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos());
+					SetSelection(FindWordStart(cursorCoords), FindWordEnd(cursorCoords), mState.mCurrentCursor);
+				}
 
 				mLastClickTime = (float)ImGui::GetTime();
 				mLastClickPos = io.MousePos;
@@ -2413,28 +2476,42 @@ void TextEditor::HandleMouseInputs()
 
 			/*
 			Left mouse button click
+			When mCtrlClickForNavigation is true, Ctrl+Click is reserved for navigation (handled by LSP)
+			Use Alt+Click for multi-cursor instead
 			*/
 			else if (click)
 			{
-				if (ctrl)
-					mState.AddCursor();
-				else
-					mState.mCurrentCursor = 0;
-
-				bool isOverLineNumber;
-				Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), &isOverLineNumber);
-				if (isOverLineNumber)
+				// When navigation mode is on, Ctrl+Click doesn't add cursor - it's for go-to-definition
+				if (ctrl && mCtrlClickForNavigation)
 				{
-					Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
-						Coordinates{ cursorCoords.mLine + 1, 0 } :
-						Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
-					SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
+					// Don't add cursor, don't change position - let LSP handler deal with navigation
+					// Just update click tracking for triple-click detection
+					mLastClickTime = (float)ImGui::GetTime();
+					mLastClickPos = io.MousePos;
 				}
 				else
-					SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
+				{
+					// Alt+Click adds cursor when nav mode is on, Ctrl+Click adds cursor when nav mode is off
+					if ((ctrl && !mCtrlClickForNavigation) || (alt && mCtrlClickForNavigation))
+						mState.AddCursor();
+					else
+						mState.mCurrentCursor = 0;
 
-				mLastClickTime = (float)ImGui::GetTime();
-				mLastClickPos = io.MousePos;
+					bool isOverLineNumber;
+					Coordinates cursorCoords = ScreenPosToCoordinates(ImGui::GetMousePos(), &isOverLineNumber);
+					if (isOverLineNumber)
+					{
+						Coordinates targetCursorPos = cursorCoords.mLine < static_cast<int>(mLines.size()) - 1 ?
+							Coordinates{ cursorCoords.mLine + 1, 0 } :
+							Coordinates{ cursorCoords.mLine, GetLineMaxColumn(cursorCoords.mLine) };
+						SetSelection({ cursorCoords.mLine, 0 }, targetCursorPos, mState.mCurrentCursor);
+					}
+					else
+						SetCursorPosition(cursorCoords, mState.GetLastAddedCursorIndex());
+
+					mLastClickTime = (float)ImGui::GetTime();
+					mLastClickPos = io.MousePos;
+				}
 			}
 			else if (ImGui::IsMouseReleased(0))
 			{
@@ -2484,10 +2561,12 @@ void TextEditor::Render(bool aParentIsFocused)
 		mTextStart += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineNumberBuffer, nullptr, nullptr).x;
 	}
 
-	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
-	mEditorScreenPos = cursorScreenPos;  // Cache for ScreenPosToCoordinates
+	const ImVec2 window_pos = ImGui::GetWindowPos();
+	const ImVec2 cursor_pos = ImGui::GetCursorPos();
 	mScrollX = ImGui::GetScrollX();
 	mScrollY = ImGui::GetScrollY();
+	// GetCursorPos returns local coordinates with scroll canceled out.
+	mEditorScreenPos = ImVec2(window_pos.x + cursor_pos.x, window_pos.y + cursor_pos.y);
 	UpdateViewVariables(mScrollX, mScrollY);
 
 	int maxColumnLimited = 0;
@@ -2579,7 +2658,8 @@ void TextEditor::Render(bool aParentIsFocused)
 
 		for (int lineNo = mFirstVisibleLine; lineNo <= mLastVisibleLine && lineNo < static_cast<int>(mLines.size()); lineNo++)
 		{
-			ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNo * mCharAdvance.y);
+			ImVec2 lineStartScreenPos = ImVec2(mEditorScreenPos.x - mScrollX,
+			                                   mEditorScreenPos.y + lineNo * mCharAdvance.y - mScrollY);
 			ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
 
 			auto& line = mLines[lineNo];
@@ -2623,6 +2703,44 @@ void TextEditor::Render(bool aParentIsFocused)
 						ImVec2{ lineStartScreenPos.x + mTextStart + rectStart, lineStartScreenPos.y },
 						ImVec2{ lineStartScreenPos.x + mTextStart + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
 						color);
+				}
+			}
+
+			// Draw link highlight (Ctrl+hover for go-to-definition)
+			if (mLinkHighlight.has_value() && mLinkHighlight->mLine == lineNo)
+			{
+				const auto& link = *mLinkHighlight;
+				int startColumn = GetCharacterColumn(lineNo, link.mStartCharIndex);
+				int endColumn = GetCharacterColumn(lineNo, link.mEndCharIndex);
+
+				startColumn = Max(0, Min(startColumn, lineMaxVisibleColumn));
+				endColumn = Max(0, Min(endColumn, lineMaxVisibleColumn));
+
+				if (endColumn > startColumn)
+				{
+					float rectStart = TextDistanceToLineStart({ lineNo, startColumn }, false);
+					float rectEnd = TextDistanceToLineStart({ lineNo, endColumn }, false);
+
+					// Draw subtle background highlight
+					ImU32 bgColor = link.mColor != 0 ? link.mColor : mPalette[(int)PaletteIndex::Selection];
+					// Apply transparency to background
+					bgColor = (bgColor & 0x00FFFFFFu) | 0x30000000u; // ~19% opacity
+					drawList->AddRectFilled(
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectStart, lineStartScreenPos.y },
+						ImVec2{ lineStartScreenPos.x + mTextStart + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
+						bgColor);
+
+					// Draw underline if enabled
+					if (link.mUnderline)
+					{
+						ImU32 underlineColor = link.mColor != 0 ? link.mColor : mPalette[(int)PaletteIndex::Default];
+						float underlineY = lineStartScreenPos.y + mCharAdvance.y - 2.0f;
+						drawList->AddLine(
+							ImVec2{ lineStartScreenPos.x + mTextStart + rectStart, underlineY },
+							ImVec2{ lineStartScreenPos.x + mTextStart + rectEnd, underlineY },
+							underlineColor,
+							1.0f);
+					}
 				}
 			}
 
