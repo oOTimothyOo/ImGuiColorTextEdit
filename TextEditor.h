@@ -178,6 +178,13 @@ public:
 	inline void SetCtrlClickForNavigation(bool aValue) { mCtrlClickForNavigation = aValue; }
 	inline bool IsCtrlClickForNavigation() const { return mCtrlClickForNavigation; }
 
+	/**
+	 * @brief Set a custom Tab handler.
+	 *
+	 * If the handler returns true, the default Tab insertion is skipped.
+	 */
+	void SetTabHandler(std::function<bool(bool)> handler);
+
 	inline int GetLineCount() const { return mLines.size(); }
 	void SetPalette(PaletteId aValue);
 	void SetPalette(const Palette& aValue);
@@ -198,6 +205,18 @@ public:
 	void SelectRegion(int aStartLine, int aStartChar, int aEndLine, int aEndChar);
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
 	void SelectAllOccurrencesOf(const char* aText, int aTextSize, bool aCaseSensitive = true);
+	/**
+	 * @brief Add a cursor one line above each existing cursor.
+	 *
+	 * Preserves column position when possible and mirrors single-line selections.
+	 */
+	void AddCursorAbove();
+	/**
+	 * @brief Add a cursor one line below each existing cursor.
+	 *
+	 * Preserves column position when possible and mirrors single-line selections.
+	 */
+	void AddCursorBelow();
 	bool AnyCursorHasSelection() const;
 	bool AllCursorsHaveSelection() const;
 	void ClearExtraCursors();
@@ -322,6 +341,8 @@ public:
 
 	// Convert visual column to character index (reverse of CharacterIndexToColumn)
 	int ColumnToCharacterIndex(int aLine, int aColumn) const;
+
+	int GetLineMaxColumn(int aLine, int aLimit = -1) const;
 
 	// Get current scroll position (for detecting scroll changes)
 	ImVec2 GetScrollPosition() const { return ImVec2(mScrollX, mScrollY); }
@@ -561,6 +582,7 @@ private:
 
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
 	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
+	void AddCursorsWithLineOffset(int aLineOffset);
 	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
 	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
 	void ChangeCurrentLinesIndentation(bool aIncrease);
@@ -582,7 +604,6 @@ private:
 	int GetCharacterIndexR(const Coordinates& aCoordinates) const;
 	int GetCharacterColumn(int aLine, int aIndex) const;
 	int GetFirstVisibleCharacterIndex(int aLine) const;
-	int GetLineMaxColumn(int aLine, int aLimit = -1) const;
 
 	Line& InsertLine(int aIndex);
 	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
