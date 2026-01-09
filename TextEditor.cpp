@@ -167,6 +167,16 @@ void TextEditor::SelectAllOccurrencesOf(const char* aText, int aTextSize, bool a
 	}
 }
 
+void TextEditor::AddCursorAbove()
+{
+	AddCursorsWithLineOffset(-1);
+}
+
+void TextEditor::AddCursorBelow()
+{
+	AddCursorsWithLineOffset(1);
+}
+
 bool TextEditor::AnyCursorHasSelection() const
 {
 	for (int c = 0; c <= mState.mCurrentCursor; c++)
@@ -1291,6 +1301,58 @@ void TextEditor::AddCursorForNextOccurrence(bool aCaseSensitive)
 	EnsureCursorVisible(-1, true);
 }
 
+void TextEditor::AddCursorsWithLineOffset(int aLineOffset)
+{
+	if (mLines.empty() || aLineOffset == 0)
+		return;
+
+	std::vector<std::pair<Coordinates, Coordinates>> newSelections;
+	newSelections.reserve(static_cast<std::size_t>(mState.mCurrentCursor + 1));
+
+	for (int c = 0; c <= mState.mCurrentCursor; ++c)
+	{
+		const Cursor& cursor = mState.mCursors[c];
+		const Coordinates anchor = SanitizeCoordinates(cursor.mInteractiveEnd);
+		const int targetLine = anchor.mLine + aLineOffset;
+		if (targetLine < 0 || targetLine >= GetLineCount())
+			continue;
+
+		const int maxColumn = GetLineMaxColumn(targetLine);
+		const auto clampColumn = [maxColumn](int column) -> int {
+			return Max(0, Min(column, maxColumn));
+		};
+
+		if (cursor.HasSelection() && cursor.mInteractiveStart.mLine == cursor.mInteractiveEnd.mLine)
+		{
+			const int startColumn = clampColumn(cursor.mInteractiveStart.mColumn);
+			const int endColumn = clampColumn(cursor.mInteractiveEnd.mColumn);
+			newSelections.emplace_back(Coordinates{ targetLine, startColumn }, Coordinates{ targetLine, endColumn });
+		}
+		else
+		{
+			const int targetColumn = clampColumn(anchor.mColumn);
+			Coordinates target{ targetLine, targetColumn };
+			newSelections.emplace_back(target, target);
+		}
+	}
+
+	if (newSelections.empty())
+		return;
+
+	for (const auto& selection : newSelections)
+	{
+		mState.AddCursor();
+		if (selection.first == selection.second)
+			SetCursorPosition(selection.first, mState.mCurrentCursor, true);
+		else
+			SetSelection(selection.first, selection.second, mState.mCurrentCursor);
+	}
+
+	mState.SortCursorsFromTopToBottom();
+	MergeCursorsIfPossible();
+	EnsureCursorVisible(-1, true);
+}
+
 bool TextEditor::FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive)
 {
 	assert(aTextSize > 0);
@@ -2330,6 +2392,10 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			MoveUpCurrentLines();
 		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
 			MoveDownCurrentLines();
+		else if (ctrl && alt && !shift && !super && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+			AddCursorAbove();
+		else if (ctrl && alt && !shift && !super && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+			AddCursorBelow();
 		else if (!mReadOnly && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGuiKey_Slash))
 			ToggleLineComment();
 		else if (isCtrlOnly && ImGui::IsKeyPressed(ImGuiKey_Insert))
@@ -2347,8 +2413,51 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		else if (isShortcut && ImGui::IsKeyPressed(ImGuiKey_A))
 			SelectAll();
 		else if (isShortcut && ImGui::IsKeyPressed(ImGuiKey_D))
-			AddCursorForNextOccurrence();
-        else if (!mReadOnly && !alt && !ctrl && !shift && !super && (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)))
+		{
+			if (!AnyCursorHasSelection())
+			{
+				Coordinates cursorCoords = GetSanitizedCursorCoordinates();
+				Coordinates wordStart = FindWordStart(cursorCoords);
+				Coordinates wordEnd = FindWordEnd(cursorCoords);
+				if (wordStart != wordEnd)
+				{
+					SetSelection(wordStart, wordEnd, mState.mCurrentCursor);
+					EnsureCursorVisible(-1, true);
+				}
+			}
+			else
+			{
+				AddCursorForNextOccurrence();
+			}
+		}
+		else if (isShiftShortcut && ImGui::IsKeyPressed(ImGuiKey_L))
+		{
+			const int cursorIndex = mState.GetLastAddedCursorIndex();
+			const Cursor& cursor = mState.mCursors[cursorIndex];
+			const bool caseSensitive = mLanguageDefinition == nullptr ? true : mLanguageDefinition->mCaseSensitive;
+
+			if (cursor.HasSelection())
+			{
+				const Coordinates selectionStart = cursor.GetSelectionStart();
+				const Coordinates selectionEnd = cursor.GetSelectionEnd();
+				std::string selectionText = GetText(selectionStart, selectionEnd);
+				if (!selectionText.empty())
+					SelectAllOccurrencesOf(selectionText.c_str(), static_cast<int>(selectionText.size()), caseSensitive);
+			}
+			else
+			{
+				Coordinates cursorCoords = GetSanitizedCursorCoordinates();
+				Coordinates wordStart = FindWordStart(cursorCoords);
+				Coordinates wordEnd = FindWordEnd(cursorCoords);
+				if (wordStart != wordEnd)
+				{
+					std::string wordText = GetText(wordStart, wordEnd);
+					if (!wordText.empty())
+						SelectAllOccurrencesOf(wordText.c_str(), static_cast<int>(wordText.size()), caseSensitive);
+				}
+			}
+		}
+		else if (!mReadOnly && !alt && !ctrl && !shift && !super && (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)))
 			EnterCharacter('\n', false);
 		else if (!mReadOnly && !alt && !ctrl && !super && ImGui::IsKeyPressed(ImGuiKey_Tab))
 			EnterCharacter('\t', shift);
