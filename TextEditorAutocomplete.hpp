@@ -1,14 +1,18 @@
 #pragma once
 
+#include "TextEditor.h"
 #include "imgui.h"
-#include <string>
-#include <vector>
-#include <memory>
+#include "utilities/imgui_scoped.hpp"
+#include "vscode/colors.hpp"
+#include <algorithm>
+#include <cctype>
 #include <functional>
+#include <iterator>
+#include <memory>
 #include <optional>
-
-// Forward declaration
-class TextEditor;
+#include <string>
+#include <utility>
+#include <vector>
 
 /**
  * @brief Autocomplete/IntelliSense system for TextEditor

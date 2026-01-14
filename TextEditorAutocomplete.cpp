@@ -1,7 +1,4 @@
 #include "TextEditorAutocomplete.hpp"
-#include "TextEditor.h"
-#include <algorithm>
-#include <cctype>
 
 void TextEditorAutocomplete::RegisterProvider(std::unique_ptr<ICompletionProvider> provider)
 {
@@ -61,16 +58,18 @@ bool TextEditorAutocomplete::Render([[maybe_unused]] TextEditor& editor)
 
     bool item_selected = false;
 
-    if (ImGui::Begin("##autocomplete", nullptr,
-                     ImGuiWindowFlags_NoTitleBar |
-                     ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoSavedSettings |
-                     ImGuiWindowFlags_AlwaysAutoResize))
-    {
+    ImGuiWindowFlags const window_flags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_AlwaysAutoResize;
+
+    if (auto window = imgui::scoped::Window("##autocomplete", nullptr, window_flags)) {
         // Render list of items
-        ImGui::BeginChild("##items", ImVec2(0, std::min(config_.popup_max_height,
-                         filtered_items_.size() * ImGui::GetTextLineHeightWithSpacing())));
+        ImVec2 const list_size(0.0f, std::min(config_.popup_max_height,
+                         static_cast<float>(filtered_items_.size()) * ImGui::GetTextLineHeightWithSpacing()));
+        imgui::scoped::Child const items_child("##items", list_size, ImGuiChildFlags_None, 0);
 
         for (int i = 0; i < static_cast<int>(filtered_items_.size()) && i < config_.max_items; ++i)
         {
@@ -93,8 +92,6 @@ bool TextEditorAutocomplete::Render([[maybe_unused]] TextEditor& editor)
             ImGui::SetScrollFromPosY(item_pos_y - ImGui::GetScrollY());
         }
 
-        ImGui::EndChild();
-
         // Documentation panel
         if (config_.show_documentation && selected_index_ >= 0 &&
             selected_index_ < static_cast<int>(filtered_items_.size()))
@@ -107,7 +104,6 @@ bool TextEditorAutocomplete::Render([[maybe_unused]] TextEditor& editor)
             }
         }
     }
-    ImGui::End();
 
     return item_selected;
 }
@@ -283,23 +279,28 @@ ImU32 TextEditorAutocomplete::GetColorForKind(CompletionItemKind kind) const
 {
     switch (kind)
     {
-        case CompletionItemKind::Method:
-        case CompletionItemKind::Function:      return IM_COL32(220, 220, 170, 255);
+        case CompletionItemKind::Method:        return vscode::colors::syntax_method;
+        case CompletionItemKind::Function:      return vscode::colors::syntax_function;
+        case CompletionItemKind::Constructor:   return vscode::colors::syntax_method;
         case CompletionItemKind::Class:
-        case CompletionItemKind::Struct:        return IM_COL32(78, 201, 176, 255);
+        case CompletionItemKind::Struct:        return vscode::colors::syntax_type;
         case CompletionItemKind::Variable:
-        case CompletionItemKind::Field:         return IM_COL32(156, 220, 254, 255);
-        case CompletionItemKind::Keyword:       return IM_COL32(86, 156, 214, 255);
-        case CompletionItemKind::Constant:      return IM_COL32(100, 102, 149, 255);
-        default:                                return IM_COL32(200, 200, 200, 255);
+        case CompletionItemKind::Field:         return vscode::colors::syntax_variable;
+        case CompletionItemKind::Keyword:       return vscode::colors::keyword_color;
+        case CompletionItemKind::Constant:      return vscode::colors::syntax_enum_member;
+        case CompletionItemKind::Enum:
+        case CompletionItemKind::EnumMember:    return vscode::colors::syntax_enum_member;
+        case CompletionItemKind::Property:      return vscode::colors::syntax_property;
+        case CompletionItemKind::Module:        return vscode::colors::syntax_namespace;
+        default:                                return vscode::colors::foreground;
     }
 }
 
 void TextEditorAutocomplete::RenderCompletionItem(const CompletionItem& item, bool is_selected)
 {
-    if (is_selected)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.3f, 0.8f, 0.4f));
+    std::optional<imgui::scoped::StyleColor> selected_bg{};
+    if (is_selected) {
+        selected_bg.emplace(ImGuiCol_Header, vscode::colors::list_selection_bg);
     }
 
     if (ImGui::Selectable(("##item" + item.label).c_str(), is_selected,
@@ -314,7 +315,7 @@ void TextEditorAutocomplete::RenderCompletionItem(const CompletionItem& item, bo
     if (config_.show_icons)
     {
         ImU32 icon_color = GetColorForKind(item.kind);
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(icon_color),
+        ImGui::TextColored(vscode::colors::to_vec4(icon_color),
                           "%s", GetIconForKind(item.kind));
         ImGui::SameLine();
     }
@@ -332,10 +333,6 @@ void TextEditorAutocomplete::RenderCompletionItem(const CompletionItem& item, bo
         ImGui::TextDisabled("%s", item.detail.c_str());
     }
 
-    if (is_selected)
-    {
-        ImGui::PopStyleColor();
-    }
 }
 
 // KeywordCompletionProvider implementation
