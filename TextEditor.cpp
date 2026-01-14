@@ -440,10 +440,15 @@ bool TextEditor::Render(const char* aTitle,
 		OnCursorPositionChanged();
 	mCursorPositionChanged = false;
 
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(mPalette[(int)PaletteIndex::Background]));
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-
-	ImGui::BeginChild(aTitle, aSize, aBorder, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
+	imgui::scoped::StyleColor const child_bg(ImGuiCol_ChildBg, mPalette[(int)PaletteIndex::Background]);
+	imgui::scoped::StyleVar const item_spacing(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+	ImGuiChildFlags const child_flags = aBorder ? ImGuiChildFlags_Borders : ImGuiChildFlags_None;
+	imgui::scoped::Child const child(
+		aTitle,
+		aSize,
+		child_flags,
+		ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs
+	);
 
 	bool isFocused = ImGui::IsWindowFocused();
 	HandleKeyboardInputs(aParentIsFocused);
@@ -455,11 +460,6 @@ bool TextEditor::Render(const char* aTitle,
 	{
 		aCallback();
 	}
-
-	ImGui::EndChild();
-
-	ImGui::PopStyleVar();
-	ImGui::PopStyleColor();
 
 	return isFocused;
 }

@@ -1,11 +1,15 @@
 #pragma once
 
+#include "TextEditor.h"
 #include "imgui.h"
-#include <vector>
+#include "utilities/imgui_scoped.hpp"
+#include "vscode/colors.hpp"
+#include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <cstdint>
-
-// Forward declaration
-class TextEditor;
+#include <utility>
+#include <vector>
 
 /**
  * @brief Minimap renderer for TextEditor - provides VSCode-style code overview
@@ -25,8 +29,8 @@ public:
         float pixels_per_line = 2.0f;
         bool show_viewport_indicator = true;
         bool show_hover_preview = true;
-        ImU32 viewport_color = IM_COL32(100, 100, 255, 100);
-        ImU32 hover_color = IM_COL32(255, 255, 255, 50);
+        ImU32 viewport_color = vscode::colors::minimap_viewport;
+        ImU32 hover_color = vscode::colors::minimap_hover;
     };
 
     TextEditorMinimap() : config_() {}

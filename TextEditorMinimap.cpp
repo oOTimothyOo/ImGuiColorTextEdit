@@ -1,8 +1,4 @@
 #include "TextEditorMinimap.hpp"
-#include "TextEditor.h"
-#include <algorithm>
-#include <cmath>
-#include <cctype>
 
 // Smooth lerp helper for animations
 static float SmoothLerp(float current, float target, float speed)
@@ -13,8 +9,9 @@ static float SmoothLerp(float current, float target, float speed)
 // Apply alpha to color
 static ImU32 ApplyAlpha(ImU32 color, float alpha)
 {
-    int a = static_cast<int>((color >> 24) * alpha);
-    return (color & 0x00FFFFFF) | (static_cast<ImU32>(a) << 24);
+    ImVec4 value = vscode::colors::to_vec4(color);
+    value.w = std::clamp(value.w * alpha, 0.0f, 1.0f);
+    return ImGui::ColorConvertFloat4ToU32(value);
 }
 
 bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available_region)
@@ -25,16 +22,24 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
     // Smooth hover animation (persists across frames)
     static float hover_anim = 0.0f;
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
+    imgui::scoped::StyleVar const minimap_vars{
+        {ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f)},
+        {ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f)}
+    };
+    imgui::scoped::StyleColor const minimap_colors{
+        {ImGuiCol_Border, vscode::colors::transparent},
+        {ImGuiCol_ChildBg, vscode::colors::transparent}
+    };
 
     // Create minimap child window
     ImVec2 minimap_size(config_.width, available_region.y);
 
-    ImGui::BeginChild("##minimap", minimap_size, ImGuiChildFlags_None,
-                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    imgui::scoped::Child const minimap_child(
+        "##minimap",
+        minimap_size,
+        ImGuiChildFlags_None,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+    );
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImVec2 minimap_pos = ImGui::GetWindowPos();
@@ -45,13 +50,10 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
 
     float content_height = minimap_max.y - minimap_min.y;
 
-    // Modern dark background with subtle gradient
-    ImU32 bg_top = IM_COL32(28, 28, 32, 250);
-    ImU32 bg_bottom = IM_COL32(22, 22, 26, 250);
-    draw_list->AddRectFilledMultiColor(minimap_min, minimap_max, bg_top, bg_top, bg_bottom, bg_bottom);
+    ImU32 bg_color = ApplyAlpha(vscode::colors::minimap_bg, config_.opacity_background);
+    draw_list->AddRectFilled(minimap_min, minimap_max, bg_color);
 
-    // Subtle left border accent
-    ImU32 border_accent = IM_COL32(80, 120, 200, 60);
+    ImU32 border_accent = ApplyAlpha(vscode::colors::minimap_slider, 0.25f);
     draw_list->AddRectFilled(minimap_min, ImVec2(minimap_min.x + 1.5f, minimap_max.y), border_accent);
 
     // Get editor info
@@ -74,12 +76,12 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
         float actual_line_h = std::max(1.0f, line_height * 0.75f);
 
         // Syntax colors (modern palette)
-        ImU32 color_default  = IM_COL32(140, 145, 160, 200);
-        ImU32 color_string   = IM_COL32(152, 195, 121, 230);  // Green
-        ImU32 color_comment  = IM_COL32(92, 99, 112, 180);    // Gray
-        ImU32 color_number   = IM_COL32(209, 154, 102, 230);  // Orange
-        ImU32 color_bracket  = IM_COL32(86, 182, 194, 230);   // Cyan
-        ImU32 color_type     = IM_COL32(97, 175, 239, 230);   // Blue
+        ImU32 color_default  = ApplyAlpha(vscode::colors::minimap_text, config_.opacity_foreground);
+        ImU32 color_string   = ApplyAlpha(vscode::colors::minimap_string, config_.opacity_foreground);
+        ImU32 color_comment  = ApplyAlpha(vscode::colors::minimap_comment, config_.opacity_foreground);
+        ImU32 color_number   = ApplyAlpha(vscode::colors::syntax_number, config_.opacity_foreground);
+        ImU32 color_bracket  = ApplyAlpha(vscode::colors::minimap_bracket, config_.opacity_foreground);
+        ImU32 color_type     = ApplyAlpha(vscode::colors::syntax_type, config_.opacity_foreground);
 
         for (int i = 0; i < total_lines && i < static_cast<int>(text_lines.size()); ++i)
         {
@@ -170,8 +172,8 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
             float hover_y = minimap_min.y + (static_cast<float>(hovered_line_) / static_cast<float>(total_lines)) * content_height;
 
             // Animated hover indicator
-            ImU32 hover_fill = ApplyAlpha(IM_COL32(255, 255, 255, 40), hover_anim);
-            ImU32 hover_line_color = ApplyAlpha(IM_COL32(100, 180, 255, 200), hover_anim);
+            ImU32 hover_fill = ApplyAlpha(config_.hover_color, 0.2f * hover_anim);
+            ImU32 hover_line_color = ApplyAlpha(vscode::colors::minimap_hover, 0.6f * hover_anim);
 
             // Highlight hovered line with glow
             float hover_h = std::max(3.0f, line_height);
@@ -204,7 +206,7 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
 
             // Brighten viewport when hovered
             float viewport_opacity = is_hovered ? 0.25f : 0.15f;
-            ImU32 viewport_fill = ApplyAlpha(IM_COL32(100, 150, 255, 255), viewport_opacity);
+            ImU32 viewport_fill = ApplyAlpha(config_.viewport_color, viewport_opacity);
 
             draw_list->AddRectFilled(
                 ImVec2(minimap_min.x, viewport_start_y),
@@ -214,15 +216,14 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
             );
 
             // Subtle border with glow effect when hovered
-            ImU32 viewport_border = is_hovered
-                ? IM_COL32(120, 170, 255, 180)
-                : IM_COL32(80, 130, 200, 100);
+            ImU32 viewport_border = ApplyAlpha(config_.viewport_color, is_hovered ? 0.7f : 0.4f);
+            ImU32 viewport_accent = ApplyAlpha(config_.viewport_color, is_hovered ? 0.9f : 0.6f);
 
             // Left accent bar (VS Code style)
             draw_list->AddRectFilled(
                 ImVec2(minimap_min.x, viewport_start_y),
                 ImVec2(minimap_min.x + 2.5f, viewport_end_y),
-                is_hovered ? IM_COL32(100, 150, 255, 255) : IM_COL32(80, 120, 200, 200),
+                viewport_accent,
                 1.0f
             );
 
@@ -273,10 +274,6 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
     {
         is_dragging_ = false;
     }
-
-    ImGui::EndChild();
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar(2);
 
     return clicked;
 }
