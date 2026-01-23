@@ -186,7 +186,7 @@ public:
 	 */
 	void SetTabHandler(std::function<bool(bool)> handler);
 
-	inline int GetLineCount() const { return mLines.size(); }
+	inline int GetLineCount() const { return static_cast<int>(mLines.size()); }
 	void SetPalette(PaletteId aValue);
 	void SetPalette(const Palette& aValue);
 	PaletteId GetPalette() const { return mPaletteId; }

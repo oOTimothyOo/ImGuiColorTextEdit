@@ -248,7 +248,7 @@ int TextEditorAutocomplete::GetFuzzyMatchScore(const CompletionItem& item,
         return -1;  // Not all characters matched
 
     // Bonus for shorter matches
-    score += 100 / (text.length() + 1);
+    score += 100 / static_cast<int>(text.length() + 1);
 
     return score;
 }

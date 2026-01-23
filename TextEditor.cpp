@@ -26,7 +26,7 @@ TextEditor::~TextEditor()
 void TextEditor::SetPalette(PaletteId aValue)
 {
 	mPaletteId = aValue;
-	const Palette* palletteBase;
+	const Palette* palletteBase = &(GetDarkPalette());
 	switch (mPaletteId)
 	{
 	case PaletteId::Dark:
@@ -40,6 +40,9 @@ void TextEditor::SetPalette(PaletteId aValue)
 		break;
 	case PaletteId::RetroBlue:
 		palletteBase = &(GetRetroBluePalette());
+		break;
+	default:
+		palletteBase = &(GetDarkPalette());
 		break;
 	}
 	/* Update palette with the current alpha from style */
@@ -580,7 +583,7 @@ TextEditor::UndoRecord::UndoRecord(const std::vector<UndoOperation>& aOperations
 
 void TextEditor::UndoRecord::Undo(TextEditor* aEditor)
 {
-	for (int i = mOperations.size() - 1; i > -1; i--)
+	for (int i = static_cast<int>(mOperations.size()) - 1; i > -1; i--)
 	{
 		const UndoOperation& operation = mOperations[i];
 		if (!operation.mText.empty())
@@ -902,7 +905,7 @@ bool TextEditor::Move(int& aLine, int& aCharIndex, bool aLeft, bool aLockLine) c
 			if (aLockLine || aLine == 0)
 				return false;
 			aLine--;
-			aCharIndex = mLines[aLine].size();
+			aCharIndex = static_cast<int>(mLines[aLine].size());
 		}
 		else
 		{
@@ -1148,7 +1151,7 @@ void TextEditor::EnterCharacter(ImWchar aChar, bool aShift)
 
 			const size_t whitespaceSize = newLine.size();
 			auto cindex = GetCharacterIndexR(coord);
-			AddGlyphsToLine(coord.mLine + 1, newLine.size(), line.begin() + cindex, line.end());
+			AddGlyphsToLine(coord.mLine + 1, static_cast<int>(newLine.size()), line.begin() + cindex, line.end());
 			RemoveGlyphsFromLine(coord.mLine, cindex);
 			SetCursorPosition(Coordinates(coord.mLine + 1, GetCharacterColumn(coord.mLine + 1, (int)whitespaceSize)), c);
 		}
@@ -1291,7 +1294,7 @@ void TextEditor::AddCursorForNextOccurrence(bool aCaseSensitive)
 
 	std::string selectionText = GetText(currentCursor.GetSelectionStart(), currentCursor.GetSelectionEnd());
 	Coordinates nextStart, nextEnd;
-	if (!FindNextOccurrence(selectionText.c_str(), selectionText.length(), currentCursor.GetSelectionEnd(), nextStart, nextEnd, aCaseSensitive))
+	if (!FindNextOccurrence(selectionText.c_str(), static_cast<int>(selectionText.size()), currentCursor.GetSelectionEnd(), nextStart, nextEnd, aCaseSensitive))
 		return;
 
 	mState.AddCursor();
@@ -1431,7 +1434,7 @@ bool TextEditor::FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out
 {
 	if (aLine > static_cast<int>(mLines.size()) - 1)
 		return false;
-	int maxCharIndex = mLines[aLine].size() - 1;
+	int maxCharIndex = static_cast<int>(mLines[aLine].size()) - 1;
 	if (aCharIndex > maxCharIndex)
 		return false;
 
@@ -2237,7 +2240,7 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
 
 		if (aStart.mLine < aEnd.mLine)
 		{
-			AddGlyphsToLine(aStart.mLine, firstLine.size(), lastLine.begin(), lastLine.end());
+			AddGlyphsToLine(aStart.mLine, static_cast<int>(firstLine.size()), lastLine.begin(), lastLine.end());
 			for (int c = 0; c <= mState.mCurrentCursor; c++) // move up cursors in line that is being moved up
 			{
 				// if cursor is selecting the same range we are deleting, it's because this is being called from
@@ -2288,7 +2291,7 @@ void TextEditor::RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar)
 void TextEditor::AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSourceStart, Line::iterator aSourceEnd)
 {
 	int targetColumn = GetCharacterColumn(aLine, aTargetIndex);
-	int charsInserted = std::distance(aSourceStart, aSourceEnd);
+	int charsInserted = static_cast<int>(std::distance(aSourceStart, aSourceEnd));
 	auto& line = mLines[aLine];
 	OnLineChanged(true, aLine, targetColumn, charsInserted, false);
 	line.insert(line.begin() + aTargetIndex, aSourceStart, aSourceEnd);
@@ -2662,7 +2665,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	mCharAdvance = ImVec2(fontWidth, fontHeight * mLineSpacing);
 
 	// Deduce mTextStart by evaluating mLines size (global lineMax) plus two spaces as text width
-	mTextStart = mLeftMargin;
+	mTextStart = static_cast<float>(mLeftMargin);
 	static char lineNumberBuffer[16];
 	if (mShowLineNumbers)
 	{
@@ -3275,7 +3278,7 @@ void TextEditor::MergeCursorsIfPossible()
 		if (cursorsToDelete.find(c) != cursorsToDelete.end())
 			mState.mCursors.erase(mState.mCursors.begin() + c);
 	}
-	mState.mCurrentCursor -= cursorsToDelete.size();
+	mState.mCurrentCursor -= static_cast<int>(cursorsToDelete.size());
 }
 
 void TextEditor::AddUndo(UndoRecord& aValue)
