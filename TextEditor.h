@@ -279,9 +279,71 @@ public:
 		ImU32 mColor = 0;
 	};
 
+	/**
+	 * @brief Represents a virtual line rendered between real document lines.
+	 */
+	struct GhostLine
+	{
+		int mAnchorLine = 0;
+		std::string mText;
+		ImU32 mTextColor = 0;
+		ImU32 mBackgroundColor = 0;
+		ImU32 mMarkerColor = 0;
+		ImU32 mSeparatorColor = 0;
+		int mLineNumber = -1;
+
+		GhostLine() = default;
+		GhostLine(const GhostLine&) = default;
+		GhostLine(GhostLine&&) noexcept = default;
+		auto operator=(const GhostLine&) -> GhostLine& = default;
+		auto operator=(GhostLine&&) noexcept -> GhostLine& = default;
+		~GhostLine() = default;
+	};
+
+	/**
+	 * @brief Inclusive line range for hiding/collapsing.
+	 */
+	struct LineRange
+	{
+		int mStartLine = 0;
+		int mEndLine = 0;
+
+		LineRange() = default;
+		LineRange(int start_line, int end_line) : mStartLine(start_line), mEndLine(end_line) {}
+		LineRange(const LineRange&) = default;
+		LineRange(LineRange&&) noexcept = default;
+		auto operator=(const LineRange&) -> LineRange& = default;
+		auto operator=(LineRange&&) noexcept -> LineRange& = default;
+		~LineRange() = default;
+	};
+
 	void SetHighlights(const std::vector<Highlight>& aHighlights);
 	void ClearHighlights();
 	inline const std::vector<Highlight>& GetHighlights() const { return mHighlights; }
+
+	/**
+	 * @brief Set virtual lines to render between document lines.
+	 */
+	void SetGhostLines(const std::vector<GhostLine>& aLines);
+	/**
+	 * @brief Set virtual lines to render between document lines.
+	 */
+	void SetGhostLines(std::vector<GhostLine>&& aLines);
+	/**
+	 * @brief Clear all virtual lines.
+	 */
+	void ClearGhostLines();
+	[[nodiscard]] bool HasGhostLines() const { return !mGhostLines.empty(); }
+
+	/**
+	 * @brief Hide inclusive line ranges in the editor (used for diff collapsing).
+	 */
+	void SetHiddenLineRanges(std::vector<LineRange> ranges);
+	/**
+	 * @brief Clear hidden line ranges.
+	 */
+	void ClearHiddenLineRanges();
+	[[nodiscard]] bool HasHiddenLineRanges() const { return !mHiddenLineRanges.empty(); }
 
 	enum class UnderlineStyle
 	{
@@ -423,6 +485,7 @@ public:
 
 
 private:
+	friend class text_editor_test_peer;
 	// ------------- Generic utils ------------- //
 
 	static inline ImVec4 U32ColorToVec4(ImU32 in)
@@ -632,7 +695,38 @@ private:
 	void ColorizeRange(int aFromLine = 0, int aToLine = 0);
 	void ColorizeInternal();
 
+	struct VisualLine
+	{
+		int mDocumentLine = -1;
+		int mGhostIndex = -1;
+		bool mIsGhost = false;
+
+		VisualLine() = default;
+		VisualLine(const VisualLine&) = default;
+		VisualLine(VisualLine&&) noexcept = default;
+		auto operator=(const VisualLine&) -> VisualLine& = default;
+		auto operator=(VisualLine&&) noexcept -> VisualLine& = default;
+		~VisualLine() = default;
+	};
+
+	void EnsureVisualLines() const;
+	int GetVisualLineCount() const;
+	int GetVisualLineForDocumentLine(int aLine) const;
+	int GetDocumentLineForVisualLine(int aLine) const;
+	const GhostLine* GetGhostLineForVisualLine(int aLine) const;
+	int GetMaxLineNumber() const;
+
 	std::vector<Line> mLines;
+	std::vector<GhostLine> mGhostLines;
+	std::vector<LineRange> mHiddenLineRanges;
+	mutable std::vector<VisualLine> mVisualLines;
+	mutable std::vector<int> mDocumentToVisual;
+	mutable int mCachedLineCount = -1;
+	std::size_t mGhostLinesRevision = 0;
+	std::size_t mHiddenRangesRevision = 0;
+	mutable std::size_t mCachedGhostRevision = 0;
+	mutable std::size_t mCachedHiddenRevision = 0;
+
 	EditorState mState;
 	std::vector<UndoRecord> mUndoBuffer;
 	int mUndoIndex = 0;

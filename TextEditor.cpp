@@ -216,12 +216,12 @@ void TextEditor::SetCursorPosition(int aLine, int aCharIndex)
 
 int TextEditor::GetFirstVisibleLine() const
 {
-	return mFirstVisibleLine;
+	return GetDocumentLineForVisualLine(mFirstVisibleLine);
 }
 
 int TextEditor::GetLastVisibleLine() const
 {
-	return mLastVisibleLine;
+	return GetDocumentLineForVisualLine(mLastVisibleLine);
 }
 
 void TextEditor::SetViewAtLine(int aLine, SetViewAtLineMode aMode)
@@ -712,6 +712,244 @@ void TextEditor::SetHighlights(const std::vector<Highlight>& aHighlights)
 void TextEditor::ClearHighlights()
 {
 	mHighlights.clear();
+}
+
+void TextEditor::SetGhostLines(const std::vector<GhostLine>& aLines)
+{
+	mGhostLines = aLines;
+	++mGhostLinesRevision;
+}
+
+void TextEditor::SetGhostLines(std::vector<GhostLine>&& aLines)
+{
+	mGhostLines = std::move(aLines);
+	++mGhostLinesRevision;
+}
+
+void TextEditor::ClearGhostLines()
+{
+	if (!mGhostLines.empty())
+	{
+		mGhostLines.clear();
+		++mGhostLinesRevision;
+	}
+}
+
+void TextEditor::SetHiddenLineRanges(std::vector<LineRange> ranges)
+{
+	if (ranges.empty())
+	{
+		ClearHiddenLineRanges();
+		return;
+	}
+
+	for (auto& range : ranges)
+	{
+		if (range.mStartLine > range.mEndLine)
+			std::swap(range.mStartLine, range.mEndLine);
+	}
+
+	std::sort(ranges.begin(), ranges.end(), [](const LineRange& a, const LineRange& b) {
+		return a.mStartLine < b.mStartLine;
+	});
+
+	std::vector<LineRange> merged;
+	merged.reserve(ranges.size());
+	for (const auto& range : ranges)
+	{
+		if (merged.empty())
+		{
+			merged.push_back(range);
+			continue;
+		}
+		auto& last = merged.back();
+		if (range.mStartLine <= last.mEndLine + 1)
+		{
+			last.mEndLine = std::max(last.mEndLine, range.mEndLine);
+		}
+		else
+		{
+			merged.push_back(range);
+		}
+	}
+
+	mHiddenLineRanges = std::move(merged);
+	++mHiddenRangesRevision;
+}
+
+void TextEditor::ClearHiddenLineRanges()
+{
+	if (!mHiddenLineRanges.empty())
+	{
+		mHiddenLineRanges.clear();
+		++mHiddenRangesRevision;
+	}
+}
+
+void TextEditor::EnsureVisualLines() const
+{
+	const int line_count = static_cast<int>(mLines.size());
+	if (mCachedLineCount == line_count && mCachedGhostRevision == mGhostLinesRevision && mCachedHiddenRevision == mHiddenRangesRevision)
+		return;
+
+	mVisualLines.clear();
+	mDocumentToVisual.clear();
+	mDocumentToVisual.resize(static_cast<std::size_t>(std::max(0, line_count)), -1);
+
+	std::vector<std::vector<int>> ghost_buckets;
+	ghost_buckets.resize(static_cast<std::size_t>(std::max(0, line_count) + 1), {});
+
+	for (std::size_t i = 0; i < mGhostLines.size(); ++i)
+	{
+		int anchor = mGhostLines[i].mAnchorLine;
+		if (anchor < 0)
+			anchor = 0;
+		if (anchor > line_count)
+			anchor = line_count;
+		ghost_buckets[static_cast<std::size_t>(anchor)].push_back(static_cast<int>(i));
+	}
+
+	int visual_index = 0;
+	std::size_t hidden_index = 0;
+	for (int doc_line = 0; doc_line < line_count; ++doc_line)
+	{
+		for (int ghost_index : ghost_buckets[static_cast<std::size_t>(doc_line)])
+		{
+			VisualLine entry{};
+			entry.mIsGhost = true;
+			entry.mGhostIndex = ghost_index;
+			mVisualLines.push_back(entry);
+			++visual_index;
+		}
+
+		while (hidden_index < mHiddenLineRanges.size() &&
+		       mHiddenLineRanges[hidden_index].mEndLine < doc_line)
+		{
+			++hidden_index;
+		}
+
+		const bool is_hidden = hidden_index < mHiddenLineRanges.size() &&
+			doc_line >= mHiddenLineRanges[hidden_index].mStartLine &&
+			doc_line <= mHiddenLineRanges[hidden_index].mEndLine;
+
+		if (is_hidden)
+		{
+			continue;
+		}
+
+		if (doc_line >= 0 && doc_line < static_cast<int>(mDocumentToVisual.size()))
+			mDocumentToVisual[static_cast<std::size_t>(doc_line)] = visual_index;
+
+		VisualLine entry{};
+		entry.mDocumentLine = doc_line;
+		mVisualLines.push_back(entry);
+		++visual_index;
+	}
+
+	for (int ghost_index : ghost_buckets[static_cast<std::size_t>(line_count)])
+	{
+		VisualLine entry{};
+		entry.mIsGhost = true;
+		entry.mGhostIndex = ghost_index;
+		mVisualLines.push_back(entry);
+		++visual_index;
+	}
+
+	mCachedLineCount = line_count;
+	mCachedGhostRevision = mGhostLinesRevision;
+	mCachedHiddenRevision = mHiddenRangesRevision;
+}
+
+int TextEditor::GetVisualLineCount() const
+{
+	EnsureVisualLines();
+	return static_cast<int>(mVisualLines.size());
+}
+
+int TextEditor::GetVisualLineForDocumentLine(int aLine) const
+{
+	EnsureVisualLines();
+	const int line_count = static_cast<int>(mLines.size());
+	if (line_count <= 0)
+		return 0;
+	if (aLine < 0)
+		return 0;
+	if (aLine >= line_count)
+		return static_cast<int>(std::max<std::size_t>(mVisualLines.size(), 1u)) - 1;
+	if (aLine >= 0 && aLine < static_cast<int>(mDocumentToVisual.size()))
+	{
+		int mapped = mDocumentToVisual[static_cast<std::size_t>(aLine)];
+		if (mapped >= 0)
+			return mapped;
+
+		for (int line = aLine + 1; line < line_count; ++line)
+		{
+			int next = mDocumentToVisual[static_cast<std::size_t>(line)];
+			if (next >= 0)
+				return next;
+		}
+		for (int line = aLine - 1; line >= 0; --line)
+		{
+			int prev = mDocumentToVisual[static_cast<std::size_t>(line)];
+			if (prev >= 0)
+				return prev;
+		}
+	}
+	return 0;
+}
+
+int TextEditor::GetDocumentLineForVisualLine(int aLine) const
+{
+	EnsureVisualLines();
+	const int line_count = static_cast<int>(mLines.size());
+	if (line_count <= 0)
+		return 0;
+	if (mVisualLines.empty())
+		return std::clamp(aLine, 0, line_count - 1);
+
+	int visual = aLine;
+	if (visual < 0)
+		visual = 0;
+	if (visual >= static_cast<int>(mVisualLines.size()))
+		visual = static_cast<int>(mVisualLines.size()) - 1;
+
+	const auto& entry = mVisualLines[static_cast<std::size_t>(visual)];
+	if (!entry.mIsGhost)
+		return std::clamp(entry.mDocumentLine, 0, line_count - 1);
+
+	if (entry.mGhostIndex < 0 || entry.mGhostIndex >= static_cast<int>(mGhostLines.size()))
+		return 0;
+
+	int anchor = mGhostLines[static_cast<std::size_t>(entry.mGhostIndex)].mAnchorLine;
+	if (anchor < 0)
+		anchor = 0;
+	if (anchor >= line_count)
+		return line_count - 1;
+	return anchor;
+}
+
+const TextEditor::GhostLine* TextEditor::GetGhostLineForVisualLine(int aLine) const
+{
+	EnsureVisualLines();
+	if (aLine < 0 || aLine >= static_cast<int>(mVisualLines.size()))
+		return nullptr;
+	const auto& entry = mVisualLines[static_cast<std::size_t>(aLine)];
+	if (!entry.mIsGhost)
+		return nullptr;
+	if (entry.mGhostIndex < 0 || entry.mGhostIndex >= static_cast<int>(mGhostLines.size()))
+		return nullptr;
+	return &mGhostLines[static_cast<std::size_t>(entry.mGhostIndex)];
+}
+
+int TextEditor::GetMaxLineNumber() const
+{
+	int max_line = static_cast<int>(mLines.size());
+	for (const auto& ghost : mGhostLines)
+	{
+		if (ghost.mLineNumber > max_line)
+			max_line = ghost.mLineNumber;
+	}
+	return max_line;
 }
 
 void TextEditor::SetLinkHighlight(const std::optional<LinkHighlight>& aLink)
@@ -1979,8 +2217,9 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 	const float text_x = local.x + mScrollX - mTextStart;
 	const float text_y = local.y + mScrollY;
 
+	const int visual_line = Max(0, (int)floor(text_y / mCharAdvance.y));
 	Coordinates out = {
-		Max(0, (int)floor(text_y / mCharAdvance.y)),
+		GetDocumentLineForVisualLine(visual_line),
 		Max(0, (int)floor(text_x / mCharAdvance.x))
 	};
 
@@ -1991,7 +2230,7 @@ ImVec2 TextEditor::CoordinatesToScreenPos(const Coordinates& aPosition) const
 {
 	Coordinates coords = SanitizeCoordinates(aPosition);
 	const float x = mEditorScreenPos.x + mTextStart - mScrollX + TextDistanceToLineStart(coords, true);
-	const float y = mEditorScreenPos.y + (coords.mLine * mCharAdvance.y) - mScrollY;
+	const float y = mEditorScreenPos.y + (GetVisualLineForDocumentLine(coords.mLine) * mCharAdvance.y) - mScrollY;
 	return ImVec2(x, y);
 }
 
@@ -2669,7 +2908,7 @@ void TextEditor::Render(bool aParentIsFocused)
 	static char lineNumberBuffer[16];
 	if (mShowLineNumbers)
 	{
-		snprintf(lineNumberBuffer, 16, " %zu ", mLines.size());
+		snprintf(lineNumberBuffer, 16, " %d ", GetMaxLineNumber());
 		mTextStart += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineNumberBuffer, nullptr, nullptr).x;
 	}
 
@@ -2682,7 +2921,9 @@ void TextEditor::Render(bool aParentIsFocused)
 	UpdateViewVariables(mScrollX, mScrollY);
 
 	int maxColumnLimited = 0;
-	if (!mLines.empty())
+	int maxGhostColumn = 0;
+	const int visual_line_count = GetVisualLineCount();
+	if (visual_line_count > 0)
 	{
 		auto drawList = ImGui::GetWindowDrawList();
 		float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
@@ -2768,11 +3009,135 @@ void TextEditor::Render(bool aParentIsFocused)
 			}
 		};
 
-		for (int lineNo = mFirstVisibleLine; lineNo <= mLastVisibleLine && lineNo < static_cast<int>(mLines.size()); lineNo++)
+		auto render_ghost_line = [&](const ImVec2& lineStartScreenPos, const ImVec2& textScreenPos, const GhostLine& ghost) -> int
+		{
+			if (ghost.mBackgroundColor != 0)
+			{
+				const ImVec2 bg_start(mEditorScreenPos.x, lineStartScreenPos.y);
+				const ImVec2 bg_end(mEditorScreenPos.x + mContentWidth, lineStartScreenPos.y + mCharAdvance.y);
+				drawList->AddRectFilled(bg_start, bg_end, ghost.mBackgroundColor);
+			}
+
+			if (ghost.mMarkerColor != 0)
+			{
+				const float marker_width = Max(2.0f, mCharAdvance.x * 0.15f);
+				const float marker_x = mEditorScreenPos.x + 1.0f;
+				drawList->AddRectFilled(ImVec2(marker_x, lineStartScreenPos.y),
+				                        ImVec2(marker_x + marker_width, lineStartScreenPos.y + mCharAdvance.y),
+				                        ghost.mMarkerColor);
+			}
+
+			if (ghost.mSeparatorColor != 0)
+			{
+				const float y_top = lineStartScreenPos.y + 0.5f;
+				const float y_bottom = lineStartScreenPos.y + mCharAdvance.y - 0.5f;
+				const ImVec2 line_start(mEditorScreenPos.x, y_top);
+				const ImVec2 line_end(mEditorScreenPos.x + mContentWidth, y_top);
+				drawList->AddLine(line_start, line_end, ghost.mSeparatorColor, 1.0f);
+				drawList->AddLine(ImVec2(mEditorScreenPos.x, y_bottom),
+				                  ImVec2(mEditorScreenPos.x + mContentWidth, y_bottom),
+				                  ghost.mSeparatorColor,
+				                  1.0f);
+			}
+
+			if (mShowLineNumbers && ghost.mLineNumber > 0)
+			{
+				snprintf(lineNumberBuffer, 16, "%d  ", ghost.mLineNumber);
+				float lineNoWidth = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineNumberBuffer, nullptr, nullptr).x;
+				ImU32 line_color = ghost.mTextColor != 0 ? ghost.mTextColor : mPalette[(int)PaletteIndex::LineNumber];
+				drawList->AddText(ImVec2(lineStartScreenPos.x + mTextStart - lineNoWidth, lineStartScreenPos.y), line_color, lineNumberBuffer);
+			}
+
+			ImU32 text_color = ghost.mTextColor != 0 ? ghost.mTextColor : mPalette[(int)PaletteIndex::Default];
+			int column = 0;
+			int char_index = 0;
+			static std::string ghostGlyphBuffer;
+			const int text_size = static_cast<int>(ghost.mText.size());
+			while (char_index < text_size && column <= mLastVisibleColumn)
+			{
+				const char c = ghost.mText[char_index];
+				ImVec2 targetGlyphPos = { textScreenPos.x + column * mCharAdvance.x, lineStartScreenPos.y };
+
+				if (c == '\t')
+				{
+					if (mShowWhitespaces)
+					{
+						ImVec2 p1, p2, p3, p4;
+						const auto s = ImGui::GetFontSize();
+						const auto x1 = targetGlyphPos.x + mCharAdvance.x * 0.3f;
+						const auto y = targetGlyphPos.y + fontHeight * 0.5f;
+
+						if (mShortTabs)
+						{
+							const auto x2 = targetGlyphPos.x + mCharAdvance.x;
+							p1 = ImVec2(x1, y);
+							p2 = ImVec2(x2, y);
+							p3 = ImVec2(x2 - s * 0.16f, y - s * 0.16f);
+							p4 = ImVec2(x2 - s * 0.16f, y + s * 0.16f);
+						}
+						else
+						{
+							const auto x2 = targetGlyphPos.x + TabSizeAtColumn(column) * mCharAdvance.x - mCharAdvance.x * 0.3f;
+							p1 = ImVec2(x1, y);
+							p2 = ImVec2(x2, y);
+							p3 = ImVec2(x2 - s * 0.2f, y - s * 0.2f);
+							p4 = ImVec2(x2 - s * 0.2f, y + s * 0.2f);
+						}
+
+						drawList->AddLine(p1, p2, mPalette[(int)PaletteIndex::ControlCharacter]);
+						drawList->AddLine(p2, p3, mPalette[(int)PaletteIndex::ControlCharacter]);
+						drawList->AddLine(p2, p4, mPalette[(int)PaletteIndex::ControlCharacter]);
+					}
+
+					column += TabSizeAtColumn(column);
+					char_index += 1;
+					continue;
+				}
+				if (c == ' ')
+				{
+					if (mShowWhitespaces)
+					{
+						const auto s = ImGui::GetFontSize();
+						const auto x = targetGlyphPos.x + spaceSize * 0.5f;
+						const auto y = targetGlyphPos.y + s * 0.5f;
+						drawList->AddCircleFilled(ImVec2(x, y), 1.5f, mPalette[(int)PaletteIndex::ControlCharacter], 4);
+					}
+					column += 1;
+					char_index += 1;
+					continue;
+				}
+
+				int seqLength = UTF8CharLength(c);
+				if (char_index + seqLength > text_size)
+					seqLength = 1;
+
+				ghostGlyphBuffer.assign(ghost.mText.data() + char_index, ghost.mText.data() + char_index + seqLength);
+				drawList->AddText(targetGlyphPos, text_color, ghostGlyphBuffer.c_str());
+
+				column += 1;
+				char_index += seqLength;
+			}
+			return column;
+		};
+
+		for (int visual_line = mFirstVisibleLine; visual_line <= mLastVisibleLine && visual_line < visual_line_count; ++visual_line)
 		{
 			ImVec2 lineStartScreenPos = ImVec2(mEditorScreenPos.x - mScrollX,
-			                                   mEditorScreenPos.y + lineNo * mCharAdvance.y - mScrollY);
+			                                   mEditorScreenPos.y + visual_line * mCharAdvance.y - mScrollY);
 			ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
+
+			const GhostLine* ghost_line = GetGhostLineForVisualLine(visual_line);
+			if (ghost_line != nullptr)
+			{
+				maxGhostColumn = Max(render_ghost_line(lineStartScreenPos, textScreenPos, *ghost_line), maxGhostColumn);
+				continue;
+			}
+
+			if (visual_line < 0 || visual_line >= static_cast<int>(mVisualLines.size()))
+				continue;
+			const int lineNo = mVisualLines[static_cast<std::size_t>(visual_line)].mDocumentLine;
+			if (lineNo < 0 || lineNo >= static_cast<int>(mLines.size()))
+				continue;
 
 			auto& line = mLines[lineNo];
 			maxColumnLimited = Max(GetLineMaxColumn(lineNo, mLastVisibleColumn), maxColumnLimited);
@@ -3131,8 +3496,10 @@ void TextEditor::Render(bool aParentIsFocused)
 			}
 		}
 	}
-	mCurrentSpaceHeight = (mLines.size() + Min(mVisibleLineCount - 1, (int)mLines.size())) * mCharAdvance.y;
-	mCurrentSpaceWidth = Max((maxColumnLimited + Min(mVisibleColumnCount - 1, maxColumnLimited)) * mCharAdvance.x, mCurrentSpaceWidth);
+	const int maxColumns = Max(maxColumnLimited, maxGhostColumn);
+	const int space_line_count = Max(visual_line_count, 1);
+	mCurrentSpaceHeight = (space_line_count + Min(mVisibleLineCount - 1, space_line_count)) * mCharAdvance.y;
+	mCurrentSpaceWidth = Max((maxColumns + Min(mVisibleColumnCount - 1, maxColumns)) * mCharAdvance.x, mCurrentSpaceWidth);
 
 	ImGui::SetCursorPos(ImVec2(0, 0));
 	ImGui::Dummy(ImVec2(mCurrentSpaceWidth, mCurrentSpaceHeight));
@@ -3143,15 +3510,16 @@ void TextEditor::Render(bool aParentIsFocused)
 		{
 			if (i) UpdateViewVariables(mScrollX, mScrollY); // second pass depends on changes made in first pass
 			Coordinates targetCoords = GetSanitizedCursorCoordinates(mEnsureCursorVisible, i); // cursor selection end or start
-			if (targetCoords.mLine <= mFirstVisibleLine)
+			const int targetVisualLine = GetVisualLineForDocumentLine(targetCoords.mLine);
+			if (targetVisualLine <= mFirstVisibleLine)
 			{
-				float targetScroll = std::max(0.0f, (targetCoords.mLine - 0.5f) * mCharAdvance.y);
+				float targetScroll = std::max(0.0f, (targetVisualLine - 0.5f) * mCharAdvance.y);
 				if (targetScroll < mScrollY)
 					ImGui::SetScrollY(targetScroll);
 			}
-			if (targetCoords.mLine >= mLastVisibleLine)
+			if (targetVisualLine >= mLastVisibleLine)
 			{
-				float targetScroll = std::max(0.0f, (targetCoords.mLine + 1.5f) * mCharAdvance.y - mContentHeight);
+				float targetScroll = std::max(0.0f, (targetVisualLine + 1.5f) * mCharAdvance.y - mContentHeight);
 				if (targetScroll > mScrollY)
 					ImGui::SetScrollY(targetScroll);
 			}
@@ -3177,18 +3545,19 @@ void TextEditor::Render(bool aParentIsFocused)
 	}
 	if (mSetViewAtLine > -1)
 	{
+		const int targetVisualLine = GetVisualLineForDocumentLine(mSetViewAtLine);
 		float targetScroll;
 		switch (mSetViewAtLineMode)
 		{
 		default:
 		case SetViewAtLineMode::FirstVisibleLine:
-			targetScroll = std::max(0.0f, (float)mSetViewAtLine * mCharAdvance.y);
+			targetScroll = std::max(0.0f, (float)targetVisualLine * mCharAdvance.y);
 			break;
 		case SetViewAtLineMode::LastVisibleLine:
-			targetScroll = std::max(0.0f, (float)(mSetViewAtLine - (mLastVisibleLine - mFirstVisibleLine)) * mCharAdvance.y);
+			targetScroll = std::max(0.0f, (float)(targetVisualLine - (mLastVisibleLine - mFirstVisibleLine)) * mCharAdvance.y);
 			break;
 		case SetViewAtLineMode::Centered:
-			targetScroll = std::max(0.0f, ((float)mSetViewAtLine - (float)(mLastVisibleLine - mFirstVisibleLine) * 0.5f) * mCharAdvance.y);
+			targetScroll = std::max(0.0f, ((float)targetVisualLine - (float)(mLastVisibleLine - mFirstVisibleLine) * 0.5f) * mCharAdvance.y);
 			break;
 		}
 		ImGui::SetScrollY(targetScroll);
