@@ -2578,12 +2578,12 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		ImGuiIO& io = ImGui::GetIO();
 		auto isOSX = io.ConfigMacOSXBehaviors;
 		auto alt = io.KeyAlt;
-		auto ctrl = io.KeyCtrl;
+		auto ctrl = io.KeyCtrl || io.KeySuper;
 		auto shift = io.KeyShift;
 		auto super = io.KeySuper;
 
-		auto isShortcut = (isOSX ? (super && !ctrl) : (ctrl && !super)) && !alt && !shift;
-		auto isShiftShortcut = (isOSX ? (super && !ctrl) : (ctrl && !super)) && shift && !alt;
+		auto isShortcut = ctrl && !alt && !shift && !super;
+		auto isShiftShortcut = ctrl && shift && !alt && !super;
 		auto isWordmoveKey = isOSX ? alt : ctrl;
 		auto isAltOnly = alt && !ctrl && !shift && !super;
 		auto isCtrlOnly = ctrl && !alt && !shift && !super;
@@ -2720,8 +2720,8 @@ void TextEditor::HandleMouseInputs()
 {
 	ImGuiIO& io = ImGui::GetIO();
 	auto shift = io.KeyShift;
-	auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
-	auto alt = io.ConfigMacOSXBehaviors ? io.KeyCtrl : io.KeyAlt;
+	auto ctrl = io.KeyCtrl || io.KeySuper;
+	auto alt = io.KeyAlt;
 
 	/*
 	Pan with middle mouse button
@@ -2903,8 +2903,12 @@ void TextEditor::Render(bool aParentIsFocused)
 	const float fontSize = ImGui::GetFontSize();
 	mCharAdvance = ImVec2(fontWidth, fontHeight * mLineSpacing);
 
-	// Deduce mTextStart by evaluating mLines size (global lineMax) plus two spaces as text width
-	mTextStart = static_cast<float>(mLeftMargin);
+	// Deduce mTextStart by evaluating gutter width + line numbers width.
+	// Reserve space for diagnostic icons so the gutter doesn't clip them.
+	const float gutter_icon_size = fontSize * 0.55f;
+	const float gutter_icon_padding = 4.0f;
+	const float gutter_icon_area = gutter_icon_padding + gutter_icon_size + gutter_icon_padding;
+	mTextStart = static_cast<float>(mLeftMargin) + gutter_icon_area;
 	static char lineNumberBuffer[16];
 	if (mShowLineNumbers)
 	{
