@@ -541,7 +541,7 @@ private:
 		std::string mDeclaration;
 	};
 
-	using Identifiers = std::unordered_map<std::string, Identifier>;
+	using Identifiers = std::map<std::string, Identifier>;
 	struct Glyph
 	{
 		char mChar;
@@ -568,7 +568,7 @@ private:
 		using TokenizeCallback = bool(*)(const char* in_begin, const char* in_end, const char*& out_begin, const char*& out_end, PaletteIndex& paletteIndex);
 
 		std::string mName;
-		std::unordered_set<std::string> mKeywords;
+		std::set<std::string> mKeywords;
 		Identifiers mIdentifiers;
 		Identifiers mPreprocIdentifiers;
 		std::string mCommentStart, mCommentEnd, mSingleLineComment;
