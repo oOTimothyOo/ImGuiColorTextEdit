@@ -11,7 +11,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -103,7 +102,12 @@ public:
 			assert(aLine >= 0);
 			assert(aColumn >= 0);
 		}
-		static Coordinates Invalid() { static Coordinates invalid(-1, -1); return invalid; }
+		static auto Invalid() -> Coordinates {
+			Coordinates invalid{};
+			invalid.mLine = -1;
+			invalid.mColumn = -1;
+			return invalid;
+		}
 
 		bool operator ==(const Coordinates& o) const
 		{
@@ -147,14 +151,20 @@ public:
 			return mColumn >= o.mColumn;
 		}
 
-		Coordinates operator -(const Coordinates& o)
+		auto operator -(const Coordinates& o) const -> Coordinates
 		{
-			return Coordinates(mLine - o.mLine, mColumn - o.mColumn);
+			Coordinates result{};
+			result.mLine = mLine - o.mLine;
+			result.mColumn = mColumn - o.mColumn;
+			return result;
 		}
 
-		Coordinates operator +(const Coordinates& o)
+		auto operator +(const Coordinates& o) const -> Coordinates
 		{
-			return Coordinates(mLine + o.mLine, mColumn + o.mColumn);
+			Coordinates result{};
+			result.mLine = mLine + o.mLine;
+			result.mColumn = mColumn + o.mColumn;
+			return result;
 		}
 	};
 
@@ -168,6 +178,10 @@ public:
 	inline bool IsShowLineNumbersEnabled() const { return mShowLineNumbers; }
 	inline void SetShortTabsEnabled(bool aValue) { mShortTabs = aValue; }
 	inline bool IsShortTabsEnabled() const { return mShortTabs; }
+	inline void SetWordWrapEnabled(bool aValue) { mWordWrapEnabled = aValue; }
+	inline bool IsWordWrapEnabled() const { return mWordWrapEnabled; }
+	void SetZoomLevel(float aValue);
+	[[nodiscard]] float GetZoomLevel() const { return mZoomLevel; }
 
 	/**
 	 * @brief Set whether Ctrl+Click should trigger go-to-definition instead of adding cursors.
@@ -247,6 +261,9 @@ public:
 
 	void SetTextLines(const std::vector<std::string>& aLines);
 	std::vector<std::string> GetTextLines() const;
+	void GetLineText(int aLine, std::string& outText) const;
+	[[nodiscard]] auto GetLineText(int aLine) const -> std::string;
+	[[nodiscard]] auto GetLineLength(int aLine) const -> int;
 	std::string GetSelectedText(int aCursor = -1) const;
 	/**
 	 * @brief Get selection start for a cursor (or the active cursor).
@@ -668,6 +685,7 @@ private:
 	int GetCharacterIndexR(const Coordinates& aCoordinates) const;
 	int GetCharacterColumn(int aLine, int aIndex) const;
 	int GetFirstVisibleCharacterIndex(int aLine) const;
+	int GetFirstVisibleCharacterIndex(int aLine, int aFirstVisibleColumn) const;
 
 	Line& InsertLine(int aIndex);
 	void RemoveLine(int aIndex, const std::unordered_set<int>* aHandledCursors = nullptr);
@@ -700,6 +718,8 @@ private:
 		int mDocumentLine = -1;
 		int mGhostIndex = -1;
 		bool mIsGhost = false;
+		int mWrapStartColumn = 0;
+		int mWrapEndColumn = 0;
 
 		VisualLine() = default;
 		VisualLine(const VisualLine&) = default;
@@ -712,7 +732,10 @@ private:
 	void EnsureVisualLines() const;
 	int GetVisualLineCount() const;
 	int GetVisualLineForDocumentLine(int aLine) const;
+	int GetVisualLineForCoordinates(const Coordinates& aCoords) const;
 	int GetDocumentLineForVisualLine(int aLine) const;
+	int GetVisualLineStartColumn(int aLine) const;
+	int GetVisualLineEndColumn(int aLine) const;
 	const GhostLine* GetGhostLineForVisualLine(int aLine) const;
 	int GetMaxLineNumber() const;
 
@@ -726,6 +749,8 @@ private:
 	std::size_t mHiddenRangesRevision = 0;
 	mutable std::size_t mCachedGhostRevision = 0;
 	mutable std::size_t mCachedHiddenRevision = 0;
+	mutable bool mCachedWordWrapEnabled = false;
+	mutable int mCachedWrapColumn = -1;
 
 	EditorState mState;
 	std::vector<UndoRecord> mUndoBuffer;
@@ -738,7 +763,9 @@ private:
 	bool mShowWhitespaces = true;
 	bool mShowLineNumbers = true;
 	bool mShortTabs = false;
+	bool mWordWrapEnabled = false;
 	bool mCtrlClickForNavigation = true; // When true, Ctrl+Click does not add cursors (for LSP navigation)
+	float mZoomLevel = 1.0f;
 
 	int mSetViewAtLine = -1;
 	SetViewAtLineMode mSetViewAtLineMode;
@@ -759,6 +786,7 @@ private:
 	int mFirstVisibleColumn = 0;
 	int mLastVisibleColumn = 0;
 	int mVisibleColumnCount = 0;
+	int mWrapColumn = 120;
 	float mContentWidth = 0.0f;
 	float mContentHeight = 0.0f;
 	float mScrollX = 0.0f;
@@ -768,6 +796,7 @@ private:
 	bool mDraggingSelection = false;
 	ImVec2 mLastMousePos;
 	bool mCursorPositionChanged = false;
+	std::vector<std::pair<int, int>> m_line_change_cursor_char_indices;
 	bool mCursorOnBracket = false;
 	Coordinates mMatchingBracketCoords;
 
@@ -783,7 +812,7 @@ private:
 	std::vector<SemanticToken> mSemanticTokens; // Stored for re-application after colorization
 	std::optional<LinkHighlight> mLinkHighlight; // Ctrl+hover link highlight
 
-	inline bool IsHorizontalScrollbarVisible() const { return mCurrentSpaceWidth > mContentWidth; }
+	inline bool IsHorizontalScrollbarVisible() const { return !mWordWrapEnabled && mCurrentSpaceWidth > mContentWidth; }
 	inline bool IsVerticalScrollbarVisible() const { return mCurrentSpaceHeight > mContentHeight; }
 	inline int TabSizeAtColumn(int aColumn) const { return mTabSize - (aColumn % mTabSize); }
 
@@ -791,8 +820,6 @@ private:
 	static const Palette& GetMarianaPalette();
 	static const Palette& GetLightPalette();
 	static const Palette& GetRetroBluePalette();
-	static const std::unordered_map<char, char> OPEN_TO_CLOSE_CHAR;
-	static const std::unordered_map<char, char> CLOSE_TO_OPEN_CHAR;
 	static PaletteId defaultPalette;
 
 private:

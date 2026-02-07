@@ -1,4 +1,6 @@
 #include "TextEditorBracketMatcher.hpp"
+#include <array>
+#include <memory_resource>
 
 void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
 {
@@ -8,12 +10,24 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
     bracket_pairs_.clear();
     bracket_cache_.clear();
 
-    auto lines = editor.GetTextLines();
-    std::vector<int> indent_columns;
-    indent_columns.reserve(lines.size());
+    const int line_count = editor.GetLineCount();
+    if (line_count <= 0) {
+        return;
+    }
+
+    bracket_pairs_.reserve(static_cast<std::size_t>(line_count));
+    bracket_cache_.reserve(static_cast<std::size_t>(line_count) * 2U);
+
+    std::array<std::byte, 4096> scratch_storage{};
+    std::pmr::monotonic_buffer_resource scratch_resource(scratch_storage.data(), scratch_storage.size());
+    std::pmr::vector<BracketPair> stack{&scratch_resource};
+    stack.reserve(static_cast<std::size_t>(std::max(8, line_count / 8)));
+
     const int tab_size = editor.GetTabSize();
-    for (int line = 0; line < static_cast<int>(lines.size()); ++line) {
-        const auto& line_text = lines[static_cast<std::size_t>(line)];
+    std::string line_text;
+    for (int line = 0; line < line_count; ++line) {
+        editor.GetLineText(line, line_text);
+
         int indent_column = 0;
         for (char ch : line_text) {
             if (ch == ' ' || ch == '\t') {
@@ -27,14 +41,6 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
                 break;
             }
         }
-        indent_columns.push_back(indent_column);
-    }
-    std::stack<BracketPair> stack;
-
-    for (int line = 0; line < static_cast<int>(lines.size()); ++line)
-    {
-        const auto& line_text = lines[line];
-
         for (int col = 0; col < static_cast<int>(line_text.length()); ++col)
         {
             char ch = line_text[col];
@@ -45,21 +51,21 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
                 BracketPair pair;
                 pair.open_line = line;
                 pair.open_column = col;
-                pair.open_indent_column = indent_columns[static_cast<std::size_t>(line)];
+                pair.open_indent_column = indent_column;
                 pair.open_char = ch;
                 pair.depth = static_cast<int>(stack.size());
 
-                stack.push(pair);
+                stack.push_back(pair);
             }
             else if (IsCloseBracket(ch))
             {
                 // Pop and match closing bracket
                 auto open_match = GetMatchingOpenBracket(ch);
 
-                if (!stack.empty() && open_match && stack.top().open_char == *open_match)
+                if (!stack.empty() && open_match && stack.back().open_char == *open_match)
                 {
-                    BracketPair pair = stack.top();
-                    stack.pop();
+                    BracketPair pair = stack.back();
+                    stack.pop_back();
 
                     pair.close_line = line;
                     pair.close_column = col;
