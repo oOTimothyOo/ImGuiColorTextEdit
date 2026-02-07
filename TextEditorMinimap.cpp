@@ -58,8 +58,8 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
 
     // Get editor info
     int total_lines = editor.GetLineCount();
-    int first_visible = const_cast<TextEditor&>(editor).GetFirstVisibleLine();
-    int last_visible = const_cast<TextEditor&>(editor).GetLastVisibleLine();
+    int first_visible = editor.GetFirstVisibleLine();
+    int last_visible = editor.GetLastVisibleLine();
 
     // Determine if window is hovered for hover effects
     bool is_hovered = ImGui::IsWindowHovered();
@@ -71,7 +71,6 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
     if (total_lines > 0)
     {
         // Draw code representation with syntax-aware coloring
-        auto text_lines = editor.GetTextLines();
         float line_height = content_height / static_cast<float>(total_lines);
         float actual_line_h = std::max(1.0f, line_height * 0.75f);
 
@@ -83,9 +82,10 @@ bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available
         ImU32 color_bracket  = ApplyAlpha(vscode::colors::minimap_bracket, config_.opacity_foreground);
         ImU32 color_type     = ApplyAlpha(vscode::colors::syntax_type, config_.opacity_foreground);
 
-        for (int i = 0; i < total_lines && i < static_cast<int>(text_lines.size()); ++i)
+        std::string line;
+        for (int i = 0; i < total_lines; ++i)
         {
-            const auto& line = text_lines[i];
+            editor.GetLineText(i, line);
             if (line.empty())
                 continue;
 

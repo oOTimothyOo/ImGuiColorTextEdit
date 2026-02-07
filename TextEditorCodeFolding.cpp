@@ -1,38 +1,71 @@
 #include "TextEditorCodeFolding.hpp"
 #include "TextEditor.h"
 #include <algorithm>
-#include <stack>
+#include <array>
 #include <cctype>
+#include <memory_resource>
 
 void TextEditorCodeFolding::AnalyzeDocument(const TextEditor& editor)
 {
     if (!config_.enabled)
         return;
 
-    auto lines = editor.GetTextLines();
-
     regions_.clear();
     line_to_region_.clear();
 
+    const int line_count = editor.GetLineCount();
+    if (line_count <= 0) {
+        return;
+    }
+
+    std::array<std::byte, 8192> scratch_storage{};
+    std::pmr::monotonic_buffer_resource scratch_resource(scratch_storage.data(), scratch_storage.size());
+
+    std::pmr::vector<int> line_indents{&scratch_resource};
+    std::pmr::vector<unsigned char> line_is_blank{&scratch_resource};
+    line_indents.resize(static_cast<std::size_t>(line_count));
+    line_is_blank.resize(static_cast<std::size_t>(line_count));
+
+    std::string line_text;
+    for (int line = 0; line < line_count; ++line) {
+        editor.GetLineText(line, line_text);
+        line_indents[static_cast<std::size_t>(line)] = GetIndentLevel(line_text);
+        line_is_blank[static_cast<std::size_t>(line)] =
+            static_cast<unsigned char>(
+                line_text.empty() ||
+                std::all_of(
+                    line_text.begin(),
+                    line_text.end(),
+                    [](unsigned char ch) { return std::isspace(ch) != 0; }
+                )
+            );
+    }
+
     std::vector<FoldRegion> detected_regions;
+    detected_regions.reserve(static_cast<std::size_t>(line_count / 2 + 8));
 
     if (config_.detection_mode == DetectionMode::Braces ||
         config_.detection_mode == DetectionMode::Both)
     {
-        auto brace_regions = DetectBraceRegions(lines);
-        detected_regions.insert(detected_regions.end(),
-                              brace_regions.begin(), brace_regions.end());
+        DetectBraceRegions(
+            editor,
+            std::span<const int>{line_indents.data(), line_indents.size()},
+            detected_regions
+        );
     }
 
     if (config_.detection_mode == DetectionMode::Indentation ||
         config_.detection_mode == DetectionMode::Both)
     {
-        auto indent_regions = DetectIndentationRegions(lines);
-        detected_regions.insert(detected_regions.end(),
-                              indent_regions.begin(), indent_regions.end());
+        DetectIndentationRegions(
+            std::span<const int>{line_indents.data(), line_indents.size()},
+            std::span<const unsigned char>{line_is_blank.data(), line_is_blank.size()},
+            detected_regions
+        );
     }
 
     // Filter by minimum lines
+    regions_.reserve(detected_regions.size());
     for (const auto& region : detected_regions)
     {
         if ((region.end_line - region.start_line) >= config_.min_lines_to_fold)
@@ -262,62 +295,63 @@ int TextEditorCodeFolding::ActualLineToVisualLine(int actual_line) const
     return visual_line;
 }
 
-std::vector<TextEditorCodeFolding::FoldRegion>
-TextEditorCodeFolding::DetectBraceRegions(const std::vector<std::string>& lines)
+void TextEditorCodeFolding::DetectBraceRegions(const TextEditor& editor,
+                                               std::span<const int> line_indents,
+                                               std::vector<FoldRegion>& out_regions)
 {
-    std::vector<FoldRegion> regions;
-    std::stack<int> brace_stack;
+    std::array<std::byte, 4096> scratch_storage{};
+    std::pmr::monotonic_buffer_resource scratch_resource(scratch_storage.data(), scratch_storage.size());
+    std::pmr::vector<int> brace_stack{&scratch_resource};
+    brace_stack.reserve(static_cast<std::size_t>(std::max(8, editor.GetLineCount() / 8)));
 
-    for (int i = 0; i < static_cast<int>(lines.size()); ++i)
+    std::string line;
+    const int line_count = editor.GetLineCount();
+    for (int i = 0; i < line_count; ++i)
     {
-        const auto& line = lines[i];
+        editor.GetLineText(i, line);
 
         for (char ch : line)
         {
             if (ch == '{')
             {
-                brace_stack.push(i);
+                brace_stack.push_back(i);
             }
             else if (ch == '}')
             {
                 if (!brace_stack.empty())
                 {
-                    int start_line = brace_stack.top();
-                    brace_stack.pop();
+                    int start_line = brace_stack.back();
+                    brace_stack.pop_back();
 
                     FoldRegion region;
                     region.start_line = start_line;
                     region.end_line = i;
-                    region.indent_level = GetIndentLevel(lines[start_line]);
-                    regions.push_back(region);
+                    region.indent_level = line_indents[static_cast<std::size_t>(start_line)];
+                    out_regions.push_back(region);
                 }
             }
         }
     }
-
-    return regions;
 }
 
-std::vector<TextEditorCodeFolding::FoldRegion>
-TextEditorCodeFolding::DetectIndentationRegions(const std::vector<std::string>& lines)
+void TextEditorCodeFolding::DetectIndentationRegions(std::span<const int> line_indents,
+                                                     std::span<const unsigned char> line_is_blank,
+                                                     std::vector<FoldRegion>& out_regions)
 {
-    std::vector<FoldRegion> regions;
-
-    for (int i = 0; i < static_cast<int>(lines.size()); ++i)
+    const int line_count = static_cast<int>(line_indents.size());
+    for (int i = 0; i < line_count; ++i)
     {
-        int current_indent = GetIndentLevel(lines[i]);
+        int current_indent = line_indents[static_cast<std::size_t>(i)];
 
         // Look ahead for lines with deeper indentation
         int end_line = i;
-        for (int j = i + 1; j < static_cast<int>(lines.size()); ++j)
+        for (int j = i + 1; j < line_count; ++j)
         {
             // Skip empty lines
-            if (lines[j].empty() ||
-                std::all_of(lines[j].begin(), lines[j].end(),
-                            [](unsigned char ch) { return std::isspace(ch) != 0; }))
+            if (line_is_blank[static_cast<std::size_t>(j)] != 0)
                 continue;
 
-            int next_indent = GetIndentLevel(lines[j]);
+            int next_indent = line_indents[static_cast<std::size_t>(j)];
 
             if (next_indent > current_indent)
             {
@@ -335,11 +369,9 @@ TextEditorCodeFolding::DetectIndentationRegions(const std::vector<std::string>& 
             region.start_line = i;
             region.end_line = end_line;
             region.indent_level = current_indent;
-            regions.push_back(region);
+            out_regions.push_back(region);
         }
     }
-
-    return regions;
 }
 
 int TextEditorCodeFolding::GetIndentLevel(const std::string& line) const

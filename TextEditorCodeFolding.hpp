@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <optional>
+#include <span>
 #include <string>
 
 // Forward declaration
@@ -193,14 +194,18 @@ private:
     std::unordered_map<int, size_t> line_to_region_;
 
     /**
-     * @brief Detect fold regions using brace matching
+     * @brief Detect fold regions using brace matching.
      */
-    std::vector<FoldRegion> DetectBraceRegions(const std::vector<std::string>& lines);
+    void DetectBraceRegions(const TextEditor& editor,
+                            std::span<const int> line_indents,
+                            std::vector<FoldRegion>& out_regions);
 
     /**
-     * @brief Detect fold regions using indentation
+     * @brief Detect fold regions using indentation.
      */
-    std::vector<FoldRegion> DetectIndentationRegions(const std::vector<std::string>& lines);
+    void DetectIndentationRegions(std::span<const int> line_indents,
+                                  std::span<const unsigned char> line_is_blank,
+                                  std::vector<FoldRegion>& out_regions);
 
     /**
      * @brief Get indentation level of a line
