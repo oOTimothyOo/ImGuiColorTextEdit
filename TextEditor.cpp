@@ -858,6 +858,7 @@ void TextEditor::EnsureVisualLines() const
 	if (mCachedLineCount == line_count &&
 	    mCachedGhostRevision == mGhostLinesRevision &&
 	    mCachedHiddenRevision == mHiddenRangesRevision &&
+	    mCachedLinesRevision == mLinesRevision &&
 	    mCachedWordWrapEnabled == mWordWrapEnabled &&
 	    mCachedWrapColumn == effective_wrap_column)
 		return;
@@ -1015,6 +1016,7 @@ void TextEditor::EnsureVisualLines() const
 	mCachedLineCount = line_count;
 	mCachedGhostRevision = mGhostLinesRevision;
 	mCachedHiddenRevision = mHiddenRangesRevision;
+	mCachedLinesRevision = mLinesRevision;
 	mCachedWordWrapEnabled = mWordWrapEnabled;
 	mCachedWrapColumn = effective_wrap_column;
 }
@@ -2748,6 +2750,7 @@ void TextEditor::RemoveGlyphsFromLine(int aLine, int aStartChar, int aEndChar)
 	OnLineChanged(true, aLine, column, aEndChar - aStartChar, true);
 	line.erase(line.begin() + aStartChar, aEndChar == -1 ? line.end() : line.begin() + aEndChar);
 	OnLineChanged(false, aLine, column, aEndChar - aStartChar, true);
+	++mLinesRevision;  // Invalidate visual line cache
 }
 
 void TextEditor::AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSourceStart, Line::iterator aSourceEnd)
@@ -2758,6 +2761,7 @@ void TextEditor::AddGlyphsToLine(int aLine, int aTargetIndex, Line::iterator aSo
 	OnLineChanged(true, aLine, targetColumn, charsInserted, false);
 	line.insert(line.begin() + aTargetIndex, aSourceStart, aSourceEnd);
 	OnLineChanged(false, aLine, targetColumn, charsInserted, false);
+	++mLinesRevision;  // Invalidate visual line cache
 }
 
 void TextEditor::AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph)
@@ -2767,6 +2771,7 @@ void TextEditor::AddGlyphToLine(int aLine, int aTargetIndex, Glyph aGlyph)
 	OnLineChanged(true, aLine, targetColumn, 1, false);
 	line.insert(line.begin() + aTargetIndex, aGlyph);
 	OnLineChanged(false, aLine, targetColumn, 1, false);
+	++mLinesRevision;  // Invalidate visual line cache
 }
 
 ImU32 TextEditor::GetGlyphColor(const Glyph& aGlyph) const
