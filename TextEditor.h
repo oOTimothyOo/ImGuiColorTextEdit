@@ -747,8 +747,10 @@ private:
 	mutable int mCachedLineCount = -1;
 	std::size_t mGhostLinesRevision = 0;
 	std::size_t mHiddenRangesRevision = 0;
+	std::size_t mLinesRevision = 0;  // Incremented on any content change to invalidate visual line cache
 	mutable std::size_t mCachedGhostRevision = 0;
 	mutable std::size_t mCachedHiddenRevision = 0;
+	mutable std::size_t mCachedLinesRevision = 0;  // Tracks mLinesRevision for cache validation
 	mutable bool mCachedWordWrapEnabled = false;
 	mutable int mCachedWrapColumn = -1;
 
