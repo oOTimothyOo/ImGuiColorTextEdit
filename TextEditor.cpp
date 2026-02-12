@@ -3365,13 +3365,15 @@ void TextEditor::Render(bool aParentIsFocused)
 
 				int seqLength = UTF8CharLength(c);
 				if (char_index + seqLength > text_size)
+				{
 					seqLength = 1;
+				}
 
-					draw_text_range(
-						targetGlyphPos,
-						text_color,
-						ghost.mText.data() + char_index,
-						ghost.mText.data() + char_index + seqLength);
+				draw_text_range(
+					targetGlyphPos,
+					text_color,
+					ghost.mText.data() + char_index,
+					ghost.mText.data() + char_index + seqLength);
 
 				column += 1;
 				char_index += seqLength;
@@ -3393,21 +3395,25 @@ void TextEditor::Render(bool aParentIsFocused)
 			}
 
 			if (visual_line < 0 || visual_line >= static_cast<int>(mVisualLines.size()))
+			{
 				continue;
-				const int lineNo = mVisualLines[static_cast<std::size_t>(visual_line)].mDocumentLine;
-				if (lineNo < 0 || lineNo >= static_cast<int>(mLines.size()))
-					continue;
+			}
+			const int lineNo = mVisualLines[static_cast<std::size_t>(visual_line)].mDocumentLine;
+			if (lineNo < 0 || lineNo >= static_cast<int>(mLines.size()))
+			{
+				continue;
+			}
 
-				auto& line = mLines[lineNo];
-				const int line_segment_start_column = GetVisualLineStartColumn(visual_line);
-				const int line_segment_end_column = GetVisualLineEndColumn(visual_line);
-				const bool show_gutter = !mWordWrapEnabled || line_segment_start_column == 0;
-				textScreenPos.x -= line_segment_start_column * mCharAdvance.x;
-				maxColumnLimited = Max(line_segment_end_column - line_segment_start_column, maxColumnLimited);
+			auto& line = mLines[lineNo];
+			const int line_segment_start_column = GetVisualLineStartColumn(visual_line);
+			const int line_segment_end_column = GetVisualLineEndColumn(visual_line);
+			const bool show_gutter = !mWordWrapEnabled || line_segment_start_column == 0;
+			textScreenPos.x -= line_segment_start_column * mCharAdvance.x;
+			maxColumnLimited = Max(line_segment_end_column - line_segment_start_column, maxColumnLimited);
 
-				Coordinates lineStartCoord(lineNo, line_segment_start_column);
-				Coordinates lineEndCoord(lineNo, line_segment_end_column);
-				const int lineMaxVisibleColumn = line_segment_end_column;
+			Coordinates lineStartCoord(lineNo, line_segment_start_column);
+			Coordinates lineEndCoord(lineNo, line_segment_end_column);
+			const int lineMaxVisibleColumn = line_segment_end_column;
 
 			if (!mHighlights.empty())
 			{
@@ -3425,15 +3431,19 @@ void TextEditor::Render(bool aParentIsFocused)
 					}
 
 					if (lineNo < startLine || lineNo > endLine)
+					{
 						continue;
+					}
 
-						int startColumn = (lineNo == startLine) ? GetCharacterColumn(lineNo, startIndex) : line_segment_start_column;
-						int endColumn = (lineNo == endLine) ? GetCharacterColumn(lineNo, endIndex) : lineMaxVisibleColumn;
+					int startColumn = (lineNo == startLine) ? GetCharacterColumn(lineNo, startIndex) : line_segment_start_column;
+					int endColumn = (lineNo == endLine) ? GetCharacterColumn(lineNo, endIndex) : lineMaxVisibleColumn;
 
-						startColumn = Max(line_segment_start_column, Min(startColumn, lineMaxVisibleColumn));
-						endColumn = Max(line_segment_start_column, Min(endColumn, lineMaxVisibleColumn));
-						if (endColumn <= startColumn)
-							continue;
+					startColumn = Max(line_segment_start_column, Min(startColumn, lineMaxVisibleColumn));
+					endColumn = Max(line_segment_start_column, Min(endColumn, lineMaxVisibleColumn));
+					if (endColumn <= startColumn)
+					{
+						continue;
+					}
 
 					float rectStart = TextDistanceToLineStart({ lineNo, startColumn }, false);
 					float rectEnd = TextDistanceToLineStart({ lineNo, endColumn }, false);
@@ -3498,13 +3508,17 @@ void TextEditor::Render(bool aParentIsFocused)
 				if (cursorSelectionEnd > lineStartCoord)
 					rectEnd = TextDistanceToLineStart(cursorSelectionEnd < lineEndCoord ? cursorSelectionEnd : lineEndCoord);
 				if (cursorSelectionEnd.mLine > lineNo || (cursorSelectionEnd.mLine == lineNo && cursorSelectionEnd > lineEndCoord))
+				{
 					rectEnd += mCharAdvance.x;
+				}
 
-					if (rectStart != -1 && rectEnd != -1 && rectStart < rectEnd)
-						drawList->AddRectFilled(
-							ImVec2{ textScreenPos.x + rectStart, lineStartScreenPos.y },
-							ImVec2{ textScreenPos.x + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
-							mPalette[(int)PaletteIndex::Selection]);
+				if (rectStart != -1 && rectEnd != -1 && rectStart < rectEnd)
+				{
+					drawList->AddRectFilled(
+						ImVec2{ textScreenPos.x + rectStart, lineStartScreenPos.y },
+						ImVec2{ textScreenPos.x + rectEnd, lineStartScreenPos.y + mCharAdvance.y },
+						mPalette[(int)PaletteIndex::Selection]);
+				}
 				}
 
 				// Draw line number (right aligned)
@@ -3731,16 +3745,22 @@ void TextEditor::Render(bool aParentIsFocused)
 						Coordinates startCoord = SanitizeCoordinates({ underline.mStartLine, underline.mStartColumn });
 						Coordinates endCoord = SanitizeCoordinates({ underline.mEndLine, underline.mEndColumn });
 					if (endCoord < startCoord)
+					{
 						std::swap(startCoord, endCoord);
+					}
 					if (lineNo < startCoord.mLine || lineNo > endCoord.mLine)
+					{
 						continue;
+					}
 
-						int startColumn = (lineNo == startCoord.mLine) ? startCoord.mColumn : line_segment_start_column;
-						int endColumn = (lineNo == endCoord.mLine) ? endCoord.mColumn : lineMaxColumn;
-						startColumn = Max(line_segment_start_column, Min(startColumn, lineMaxColumn));
-						endColumn = Max(line_segment_start_column, Min(endColumn, lineMaxColumn));
-						if (endColumn <= startColumn)
-							continue;
+					int startColumn = (lineNo == startCoord.mLine) ? startCoord.mColumn : line_segment_start_column;
+					int endColumn = (lineNo == endCoord.mLine) ? endCoord.mColumn : lineMaxColumn;
+					startColumn = Max(line_segment_start_column, Min(startColumn, lineMaxColumn));
+					endColumn = Max(line_segment_start_column, Min(endColumn, lineMaxColumn));
+					if (endColumn <= startColumn)
+					{
+						continue;
+					}
 
 					float startX = TextDistanceToLineStart({ lineNo, startColumn }, false);
 					float endX = TextDistanceToLineStart({ lineNo, endColumn }, false);
