@@ -2045,9 +2045,13 @@ void TextEditor::MoveDownCurrentLines()
 			affectedLines.insert(currentLine);
 			minLine = minLine == -1 ? currentLine : (currentLine < minLine ? currentLine : minLine);
 			maxLine = maxLine == -1 ? currentLine : (currentLine > maxLine ? currentLine : maxLine);
-		}
+			}
 	}
-	if (maxLine == static_cast<int>(mLines.size()) - 1) // can't move down anymore
+	const bool has_trailing_empty_line = !mLines.empty() && mLines.back().empty();
+	const int last_movable_line = has_trailing_empty_line
+		? static_cast<int>(mLines.size()) - 2
+		: static_cast<int>(mLines.size()) - 1;
+	if (maxLine >= last_movable_line) // can't move down anymore
 		return;
 
 	Coordinates start = { minLine, 0 };
