@@ -692,6 +692,62 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::C()
 	return langDef;
 }
 
+const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::CMake()
+{
+	static bool inited = false;
+	static LanguageDefinition langDef;
+	if (!inited)
+	{
+		static const char* const keywords[] = {
+			"if", "elseif", "else", "endif",
+			"foreach", "endforeach",
+			"while", "endwhile",
+			"function", "endfunction",
+			"macro", "endmacro",
+			"block", "endblock",
+			"set", "unset", "option",
+			"project", "cmake_minimum_required",
+			"include", "find_package",
+			"add_executable", "add_library",
+			"target_link_libraries", "target_include_directories", "target_compile_definitions",
+			"target_compile_options", "target_link_options", "target_sources",
+			"set_target_properties", "set_property", "get_property",
+			"message", "install", "file", "list", "string", "math", "cmake_path",
+			"configure_file", "add_subdirectory", "enable_testing", "add_test", "return"
+		};
+		// TextEditor uppercases identifiers before keyword lookup for case-insensitive languages.
+		// Store CMake commands as uppercase to keep lookup fast and avoid per-token allocations.
+		for (auto& k : keywords)
+		{
+			std::string keyword{k};
+			for (char& ch : keyword)
+			{
+				if (ch >= 'a' && ch <= 'z')
+				{
+					ch = static_cast<char>('A' + (ch - 'a'));
+				}
+			}
+			langDef.mKeywords.insert(std::move(keyword));
+		}
+
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\"(\\.|[^\"])*\")##", PaletteIndex::String));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\[[=]*\[[\s\S]*?\][=]*\])##", PaletteIndex::String));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\$\{[A-Za-z_][A-Za-z0-9_]*\})##", PaletteIndex::Identifier));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))##", PaletteIndex::Number));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([A-Za-z_][A-Za-z0-9_]*)##", PaletteIndex::Identifier));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([\(\)\$\{\}\<\>\=\!\+\-\*\/\;\,\.\:])##", PaletteIndex::Punctuation));
+
+		langDef.mCommentStart = "#[[";
+		langDef.mCommentEnd = "]]";
+		langDef.mSingleLineComment = "#";
+		langDef.mCaseSensitive = false;
+		langDef.mName = "CMake";
+
+		inited = true;
+	}
+	return langDef;
+}
+
 const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Sql()
 {
 	static bool inited = false;

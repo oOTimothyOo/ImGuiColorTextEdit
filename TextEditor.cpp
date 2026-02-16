@@ -108,6 +108,9 @@ void TextEditor::SetLanguageDefinition(LanguageDefinitionId aValue)
 	case LanguageDefinitionId::C:
 		mLanguageDefinition = &(LanguageDefinition::C());
 		break;
+	case LanguageDefinitionId::CMake:
+		mLanguageDefinition = &(LanguageDefinition::CMake());
+		break;
 	case LanguageDefinitionId::Cs:
 		mLanguageDefinition = &(LanguageDefinition::Cs());
 		break;
