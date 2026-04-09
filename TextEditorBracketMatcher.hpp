@@ -128,6 +128,10 @@ private:
     // Cache: position -> bracket info
     std::unordered_map<uint64_t, BracketPair> bracket_cache_;
 
+    // Dirty tracking: skip re-analysis when document hasn't changed
+    int last_undo_index_ = -1;
+    int last_line_count_ = -1;
+
     /**
      * @brief Convert line/column to a hash key for fast lookup
      */
