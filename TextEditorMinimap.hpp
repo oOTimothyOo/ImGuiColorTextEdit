@@ -8,6 +8,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -79,11 +81,40 @@ public:
     [[nodiscard]] int GetClickedLine() const { return clicked_line_; }
     void ResetClickedLine() { clicked_line_ = -1; }
 
+    enum class LineColorKind : std::uint8_t
+    {
+        Default,
+        String,
+        Comment,
+        Number,
+        Bracket,
+        Type
+    };
+
+    struct LineRun
+    {
+        std::uint16_t start_column = 0;
+        std::uint16_t length = 0;
+        LineColorKind color = LineColorKind::Default;
+    };
+
+    struct LineSummary
+    {
+        std::uint16_t indent_columns = 0;
+        std::vector<LineRun> runs;
+    };
+
 private:
     Config config_;
     int hovered_line_ = -1;
     int clicked_line_ = -1;
     bool is_dragging_ = false;
+    int cached_undo_index_ = -1;
+    int cached_line_count_ = -1;
+    float hover_anim_ = 0.0f;
+    std::vector<LineSummary> cached_line_summaries_;
+
+    void RebuildLineSummaries(const TextEditor& editor);
 
     /**
      * @brief Render a single line in the minimap

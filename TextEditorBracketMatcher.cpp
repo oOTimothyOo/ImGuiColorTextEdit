@@ -7,10 +7,18 @@ void TextEditorBracketMatcher::AnalyzeDocument(const TextEditor& editor)
     if (!config_.enabled)
         return;
 
+    // Skip re-analysis when document hasn't changed
+    const int undo_index = editor.GetUndoIndex();
+    const int line_count = editor.GetLineCount();
+    if (undo_index == last_undo_index_ && line_count == last_line_count_) {
+        return;
+    }
+    last_undo_index_ = undo_index;
+    last_line_count_ = line_count;
+
     bracket_pairs_.clear();
     bracket_cache_.clear();
 
-    const int line_count = editor.GetLineCount();
     if (line_count <= 0) {
         return;
     }

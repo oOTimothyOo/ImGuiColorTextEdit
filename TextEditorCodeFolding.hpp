@@ -193,6 +193,10 @@ private:
     // Cache: line -> region index
     std::unordered_map<int, size_t> line_to_region_;
 
+    // Dirty tracking: skip re-analysis when document hasn't changed
+    int last_undo_index_ = -1;
+    int last_line_count_ = -1;
+
     /**
      * @brief Detect fold regions using brace matching.
      */

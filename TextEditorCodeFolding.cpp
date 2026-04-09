@@ -10,10 +10,26 @@ void TextEditorCodeFolding::AnalyzeDocument(const TextEditor& editor)
     if (!config_.enabled)
         return;
 
+    // Skip re-analysis when document hasn't changed
+    const int undo_index = editor.GetUndoIndex();
+    const int line_count = editor.GetLineCount();
+    if (undo_index == last_undo_index_ && line_count == last_line_count_) {
+        return;
+    }
+    last_undo_index_ = undo_index;
+    last_line_count_ = line_count;
+
+    // Preserve fold state across re-analysis
+    std::unordered_map<int, bool> prev_fold_state;
+    for (const auto& region : regions_) {
+        if (region.is_folded) {
+            prev_fold_state[region.start_line] = true;
+        }
+    }
+
     regions_.clear();
     line_to_region_.clear();
 
-    const int line_count = editor.GetLineCount();
     if (line_count <= 0) {
         return;
     }
@@ -79,6 +95,14 @@ void TextEditorCodeFolding::AnalyzeDocument(const TextEditor& editor)
              [](const FoldRegion& a, const FoldRegion& b) {
                  return a.start_line < b.start_line;
              });
+
+    // Restore fold state from before re-analysis
+    for (auto& region : regions_) {
+        auto it = prev_fold_state.find(region.start_line);
+        if (it != prev_fold_state.end()) {
+            region.is_folded = it->second;
+        }
+    }
 
     RebuildCache();
 }
