@@ -29,8 +29,8 @@ public:
         float pixels_per_line = 2.0f;
         bool show_viewport_indicator = true;
         bool show_hover_preview = true;
-        ImU32 viewport_color = vscode::colors::minimap_viewport;
-        ImU32 hover_color = vscode::colors::minimap_hover;
+        ImU32 viewport_color = vscode::colors::to_u32(vscode::colors::minimap_viewport);
+        ImU32 hover_color = vscode::colors::to_u32(vscode::colors::minimap_hover);
     };
 
     TextEditorMinimap() : config_() {}
