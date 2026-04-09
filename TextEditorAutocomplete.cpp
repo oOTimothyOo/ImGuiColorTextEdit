@@ -279,20 +279,20 @@ ImU32 TextEditorAutocomplete::GetColorForKind(CompletionItemKind kind) const
 {
     switch (kind)
     {
-        case CompletionItemKind::Method:        return vscode::colors::syntax_method;
-        case CompletionItemKind::Function:      return vscode::colors::syntax_function;
-        case CompletionItemKind::Constructor:   return vscode::colors::syntax_method;
+        case CompletionItemKind::Method:        return vscode::colors::to_u32(vscode::colors::syntax_method);
+        case CompletionItemKind::Function:      return vscode::colors::to_u32(vscode::colors::syntax_function);
+        case CompletionItemKind::Constructor:   return vscode::colors::to_u32(vscode::colors::syntax_method);
         case CompletionItemKind::Class:
-        case CompletionItemKind::Struct:        return vscode::colors::syntax_type;
+        case CompletionItemKind::Struct:        return vscode::colors::to_u32(vscode::colors::syntax_type);
         case CompletionItemKind::Variable:
-        case CompletionItemKind::Field:         return vscode::colors::syntax_variable;
-        case CompletionItemKind::Keyword:       return vscode::colors::keyword_color;
-        case CompletionItemKind::Constant:      return vscode::colors::syntax_enum_member;
+        case CompletionItemKind::Field:         return vscode::colors::to_u32(vscode::colors::syntax_variable);
+        case CompletionItemKind::Keyword:       return vscode::colors::to_u32(vscode::colors::keyword_color);
+        case CompletionItemKind::Constant:      return vscode::colors::to_u32(vscode::colors::syntax_enum_member);
         case CompletionItemKind::Enum:
-        case CompletionItemKind::EnumMember:    return vscode::colors::syntax_enum_member;
-        case CompletionItemKind::Property:      return vscode::colors::syntax_property;
-        case CompletionItemKind::Module:        return vscode::colors::syntax_namespace;
-        default:                                return vscode::colors::foreground;
+        case CompletionItemKind::EnumMember:    return vscode::colors::to_u32(vscode::colors::syntax_enum_member);
+        case CompletionItemKind::Property:      return vscode::colors::to_u32(vscode::colors::syntax_property);
+        case CompletionItemKind::Module:        return vscode::colors::to_u32(vscode::colors::syntax_namespace);
+        default:                                return vscode::colors::to_u32(vscode::colors::foreground);
     }
 }
 
@@ -300,7 +300,7 @@ void TextEditorAutocomplete::RenderCompletionItem(const CompletionItem& item, bo
 {
     std::optional<imgui::scoped::StyleColor> selected_bg{};
     if (is_selected) {
-        selected_bg.emplace(ImGuiCol_Header, vscode::colors::list_selection_bg);
+        selected_bg.emplace(ImGuiCol_Header, vscode::colors::to_u32(vscode::colors::list_selection_bg));
     }
 
     if (ImGui::Selectable(("##item" + item.label).c_str(), is_selected,

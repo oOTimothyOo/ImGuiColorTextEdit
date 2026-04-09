@@ -14,6 +14,11 @@ static ImU32 ApplyAlpha(ImU32 color, float alpha)
     return ImGui::ColorConvertFloat4ToU32(value);
 }
 
+static ImU32 ApplyAlpha(const vscode::colors::ColorRef& color, float alpha)
+{
+    return vscode::colors::apply_alpha(color, alpha);
+}
+
 bool TextEditorMinimap::Render(const TextEditor& editor, const ImVec2& available_region)
 {
     if (!config_.enabled)
