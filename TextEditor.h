@@ -275,6 +275,8 @@ public:
 
 	void SetTextLines(const std::vector<std::string>& aLines);
 	std::vector<std::string> GetTextLines() const;
+	void MoveCurrentLinesUp() { MoveUpCurrentLines(); }
+	void MoveCurrentLinesDown() { MoveDownCurrentLines(); }
 	void GetLineText(int aLine, std::string& outText) const;
 	[[nodiscard]] auto GetLineText(int aLine) const -> std::string;
 	[[nodiscard]] auto GetLineLength(int aLine) const -> int;
