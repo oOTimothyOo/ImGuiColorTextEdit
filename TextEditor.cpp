@@ -2046,6 +2046,10 @@ void TextEditor::MoveUpCurrentLines()
 	end = { maxLine, GetLineMaxColumn(maxLine) }; // this line is swapped with line above, need to find new max column
 	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Add });
 	u.mAfter = mState;
+	Colorize(start.mLine - 1, end.mLine - start.mLine + 2);
+	mCursorPositionChanged = true;
+	++mLinesRevision;
+	EnsureCursorVisible();
 	AddUndo(u);
 }
 
@@ -2094,6 +2098,10 @@ void TextEditor::MoveDownCurrentLines()
 	end = { maxLine + 1, GetLineMaxColumn(maxLine + 1) }; // this line is swapped with line below, need to find new max column
 	u.mOperations.push_back({ GetText(start, end), start, end, UndoOperationType::Add });
 	u.mAfter = mState;
+	Colorize(start.mLine - 1, end.mLine - start.mLine + 2);
+	mCursorPositionChanged = true;
+	++mLinesRevision;
+	EnsureCursorVisible();
 	AddUndo(u);
 }
 
@@ -2885,9 +2893,9 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 			ChangeCurrentLinesIndentation(false);
 		else if (!mReadOnly && !alt && ctrl && !shift && !super && ImGui::IsKeyPressed(ImGuiKey_RightBracket))
 			ChangeCurrentLinesIndentation(true);
-		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+		else if (!mReadOnly && ((alt && !ctrl && !shift && !super) || (!alt && ctrl && shift && !super)) && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
 			MoveUpCurrentLines();
-		else if (!alt && ctrl && shift && !super && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+		else if (!mReadOnly && ((alt && !ctrl && !shift && !super) || (!alt && ctrl && shift && !super)) && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
 			MoveDownCurrentLines();
 		else if (ctrl && alt && !shift && !super && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
 			AddCursorAbove();
