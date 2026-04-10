@@ -497,6 +497,26 @@ auto TextEditor::GetLineLength(int aLine) const -> int
 	return static_cast<int>(mLines[static_cast<std::size_t>(aLine)].size());
 }
 
+auto TextEditor::GetLineStyledTextRuns(int aLine) const -> std::vector<StyledTextRun>
+{
+	std::vector<StyledTextRun> runs;
+	if (aLine < 0 || aLine >= static_cast<int>(mLines.size()))
+		return runs;
+
+	const auto& line = mLines[static_cast<std::size_t>(aLine)];
+	runs.reserve(line.empty() ? 0 : 4);
+
+	for (const auto& glyph : line)
+	{
+		const ImU32 color = GetGlyphColor(glyph);
+		if (runs.empty() || runs.back().mColor != color)
+			runs.emplace_back(std::string{}, color);
+		runs.back().mText.push_back(glyph.mChar);
+	}
+
+	return runs;
+}
+
 bool TextEditor::Render(const char* aTitle,
                         bool aParentIsFocused,
                         const ImVec2& aSize,
