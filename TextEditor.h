@@ -259,11 +259,26 @@ public:
 	void SetText(const std::string& aText);
 	std::string GetText() const;
 
+	struct StyledTextRun
+	{
+		std::string mText;
+		ImU32 mColor = 0;
+
+		StyledTextRun() = default;
+		StyledTextRun(std::string text, ImU32 color) : mText(std::move(text)), mColor(color) {}
+		StyledTextRun(const StyledTextRun&) = default;
+		StyledTextRun(StyledTextRun&&) noexcept = default;
+		auto operator=(const StyledTextRun&) -> StyledTextRun& = default;
+		auto operator=(StyledTextRun&&) noexcept -> StyledTextRun& = default;
+		~StyledTextRun() = default;
+	};
+
 	void SetTextLines(const std::vector<std::string>& aLines);
 	std::vector<std::string> GetTextLines() const;
 	void GetLineText(int aLine, std::string& outText) const;
 	[[nodiscard]] auto GetLineText(int aLine) const -> std::string;
 	[[nodiscard]] auto GetLineLength(int aLine) const -> int;
+	[[nodiscard]] auto GetLineStyledTextRuns(int aLine) const -> std::vector<StyledTextRun>;
 	std::string GetSelectedText(int aCursor = -1) const;
 	/**
 	 * @brief Get selection start for a cursor (or the active cursor).
