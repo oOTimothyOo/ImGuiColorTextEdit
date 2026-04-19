@@ -981,3 +981,39 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Json()
 	}
 	return langDef;
 }
+
+const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Aimms()
+{
+	static bool inited = false;
+	static LanguageDefinition langDef;
+	if (!inited)
+	{
+		static const char* const keywords[] = {
+			"model", "section", "declaration", "set", "parameter", "variable", "constraint",
+			"mathematicalprogram", "procedure", "function", "index", "subset", "of", "range",
+			"unit", "definition", "body", "comment", "text", "if", "then", "else", "elseif",
+			"endif", "for", "do", "endfor", "while", "endwhile", "repeat", "until", "switch",
+			"case", "default", "endswitch", "solve", "minimize", "maximize", "where", "exists",
+			"forall", "sum", "prod", "min", "max", "ord", "card", "first", "last", "element",
+			"data", "read", "write", "display", "option", "return", "break", "continue",
+			"true", "false", "and", "or", "not", "in", "by", "to", "from", "with", "without"
+		};
+		for (const char* keyword : keywords)
+			langDef.mKeywords.insert(keyword);
+
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\"(\\.|[^\"])*\")##", PaletteIndex::String));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\'(\\.|[^\'])*\')##", PaletteIndex::String));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?)##", PaletteIndex::Number));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([A-Za-z_][A-Za-z0-9_']*)##", PaletteIndex::Identifier));
+		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##([\[\]\{\}\(\)\:\;\,\.\+\-\*\/\=\<\>\|\&])##", PaletteIndex::Punctuation));
+
+		langDef.mCommentStart = "/*";
+		langDef.mCommentEnd = "*/";
+		langDef.mSingleLineComment = "!";
+		langDef.mCaseSensitive = false;
+		langDef.mName = "AIMMS";
+
+		inited = true;
+	}
+	return langDef;
+}
