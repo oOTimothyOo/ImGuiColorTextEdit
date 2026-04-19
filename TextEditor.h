@@ -79,7 +79,7 @@ public:
 	typedef std::array<ImU32, (unsigned)PaletteIndex::Max> Palette;
 	enum class LanguageDefinitionId
 	{
-		None, Cpp, C, CMake, Cs, Python, Lua, Json, Sql, AngelScript, Glsl, Hlsl
+		None, Cpp, C, CMake, Cs, Python, Lua, Json, Sql, AngelScript, Glsl, Hlsl, ModelLanguage
 	};
 	enum class SetViewAtLineMode
 	{
@@ -622,6 +622,7 @@ private:
 		static const LanguageDefinition& Lua();
 		static const LanguageDefinition& Cs();
 		static const LanguageDefinition& Json();
+		static const LanguageDefinition& ModelLanguage();
 	};
 
 	enum class UndoOperationType { Add, Delete };
