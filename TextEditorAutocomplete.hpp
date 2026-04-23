@@ -66,6 +66,8 @@ public:
         CompletionItemKind kind = CompletionItemKind::Text;
         int priority = 0;                     // For sorting (higher = better)
         std::string filter_text;              // Text used for filtering (default: label)
+        int replace_start_char = -1;          // Replacement range start on trigger line
+        int replace_end_char = -1;            // Replacement range end on trigger line
 
         CompletionItem() = default;
         explicit CompletionItem(std::string lbl)
@@ -135,6 +137,11 @@ public:
      * @brief Register a completion provider
      */
     void RegisterProvider(std::unique_ptr<ICompletionProvider> provider);
+
+    /**
+     * @brief Remove all registered completion providers.
+     */
+    void ClearProviders();
 
     /**
      * @brief Trigger autocomplete at current cursor position
