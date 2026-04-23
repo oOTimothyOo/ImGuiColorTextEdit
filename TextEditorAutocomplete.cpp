@@ -8,9 +8,15 @@ void TextEditorAutocomplete::RegisterProvider(std::unique_ptr<ICompletionProvide
     }
 }
 
+void TextEditorAutocomplete::ClearProviders()
+{
+    providers_.clear();
+    Close();
+}
+
 void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char)
 {
-    if (!config_.enabled)
+    if (!config_.enabled || providers_.empty())
         return;
 
     int line, column;
@@ -30,30 +36,33 @@ void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char
                             std::make_move_iterator(items.end()));
     }
 
-    if (!current_items_.empty())
+    if (current_items_.empty())
     {
-        // Sort by priority
-        std::sort(current_items_.begin(), current_items_.end(),
-                 [](const CompletionItem& a, const CompletionItem& b) {
-                     return a.priority > b.priority;
-                 });
-
-        filter_text_.clear();
-        FilterCompletions(filter_text_);
-        selected_index_ = 0;
-        is_active_ = true;
+        Close();
+        return;
     }
+
+    std::sort(current_items_.begin(), current_items_.end(),
+             [](const CompletionItem& a, const CompletionItem& b) {
+                 return a.priority > b.priority;
+             });
+
+    filter_text_.clear();
+    FilterCompletions(filter_text_);
+    selected_index_ = 0;
+    is_active_ = !filtered_items_.empty();
 }
 
-bool TextEditorAutocomplete::Render([[maybe_unused]] TextEditor& editor)
+bool TextEditorAutocomplete::Render(TextEditor& editor)
 {
     if (!is_active_ || filtered_items_.empty())
         return false;
 
     ImGui::SetNextWindowSize(ImVec2(config_.popup_width, 0), ImGuiCond_Always);
 
-    // Position popup near cursor
-    ImVec2 cursor_screen_pos = ImGui::GetCursorScreenPos();  // This should be calculated from editor
+    const TextEditor::Coordinates cursor_pos{trigger_line_, trigger_column_};
+    ImVec2 cursor_screen_pos = editor.CoordinatesToScreenPos(cursor_pos);
+    cursor_screen_pos.y += editor.GetLineHeight();
     ImGui::SetNextWindowPos(cursor_screen_pos, ImGuiCond_Always);
 
     bool item_selected = false;
@@ -69,17 +78,13 @@ bool TextEditorAutocomplete::Render([[maybe_unused]] TextEditor& editor)
         // Render list of items
         ImVec2 const list_size(0.0f, std::min(config_.popup_max_height,
                          static_cast<float>(filtered_items_.size()) * ImGui::GetTextLineHeightWithSpacing()));
-        imgui::scoped::Child const items_child("##items", list_size, ImGuiChildFlags_None, 0);
-
-        for (int i = 0; i < static_cast<int>(filtered_items_.size()) && i < config_.max_items; ++i)
-        {
-            bool is_selected = (i == selected_index_);
-            RenderCompletionItem(filtered_items_[i], is_selected);
-
-            if (is_selected && ImGui::IsItemHovered())
+        if (auto items_child = imgui::scoped::Child("##items", list_size, ImGuiChildFlags_None, 0)) {
+            for (int i = 0; i < static_cast<int>(filtered_items_.size()) && i < config_.max_items; ++i)
             {
-                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                {
+                bool is_selected = (i == selected_index_);
+                RenderCompletionItem(filtered_items_[i], is_selected);
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                    selected_index_ = i;
                     item_selected = true;
                 }
             }
@@ -119,7 +124,7 @@ bool TextEditorAutocomplete::HandleKeyboard()
         return true;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_Tab))
+    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter) || ImGui::IsKeyPressed(ImGuiKey_Tab))
     {
         // Item will be accepted by caller
         return true;
@@ -164,7 +169,7 @@ void TextEditorAutocomplete::Close()
 }
 
 std::optional<TextEditorAutocomplete::CompletionItem>
-TextEditorAutocomplete::AcceptSelected([[maybe_unused]] TextEditor& editor)
+TextEditorAutocomplete::AcceptSelected(TextEditor& editor)
 {
     if (!is_active_ || selected_index_ < 0 ||
         selected_index_ >= static_cast<int>(filtered_items_.size()))
@@ -173,6 +178,27 @@ TextEditorAutocomplete::AcceptSelected([[maybe_unused]] TextEditor& editor)
     }
 
     auto item = filtered_items_[selected_index_];
+    if (item.replace_start_char >= 0 && item.replace_end_char >= item.replace_start_char && trigger_line_ >= 0) {
+        (void)editor.ReplaceRange(
+            trigger_line_,
+            item.replace_start_char,
+            trigger_line_,
+            item.replace_end_char,
+            item.insert_text.c_str());
+        editor.SetCursorPosition(trigger_line_, item.replace_start_char + static_cast<int>(item.insert_text.size()));
+    } else {
+        int line = 0;
+        int column = 0;
+        editor.GetCursorPosition(line, column);
+        const int character_index = editor.ColumnToCharacterIndex(line, column);
+        (void)editor.ReplaceRange(
+            line,
+            character_index,
+            line,
+            character_index,
+            item.insert_text.c_str());
+        editor.SetCursorPosition(line, character_index + static_cast<int>(item.insert_text.size()));
+    }
     Close();
     return item;
 }

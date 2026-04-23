@@ -254,6 +254,7 @@ public:
 	void Redo(int aSteps = 1);
 	inline bool CanUndo() const { return !mReadOnly && mUndoIndex > 0; };
 	inline bool CanRedo() const { return !mReadOnly && mUndoIndex < (int)mUndoBuffer.size(); };
+	void SetKeyboardInputInterceptor(std::function<bool()> callback) { mKeyboardInputInterceptor = std::move(callback); }
 	inline int GetUndoIndex() const { return mUndoIndex; };
 
 	void SetText(const std::string& aText);
@@ -780,6 +781,7 @@ private:
 	int mTabSize = 4;
 	float mLineSpacing = 1.0f;
 	bool mReadOnly = false;
+	std::function<bool()> mKeyboardInputInterceptor{};
 	bool mAutoIndent = true;
 	bool mShowWhitespaces = true;
 	bool mShowLineNumbers = true;

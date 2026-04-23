@@ -2860,6 +2860,9 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		io.WantCaptureKeyboard = true;
 		io.WantTextInput = true;
 
+		if (mKeyboardInputInterceptor && mKeyboardInputInterceptor())
+			return;
+
 		if (!mReadOnly && isShortcut && ImGui::IsKeyPressed(ImGuiKey_Z))
 			Undo();
 		else if (!mReadOnly && isAltOnly && ImGui::IsKeyPressed(ImGuiKey_Backspace))

@@ -989,17 +989,51 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Aimms()
 	if (!inited)
 	{
 		static const char* const keywords[] = {
-			"model", "section", "declaration", "set", "parameter", "variable", "constraint",
-			"mathematicalprogram", "procedure", "function", "index", "subset", "of", "range",
-			"unit", "definition", "body", "comment", "text", "if", "then", "else", "elseif",
-			"endif", "for", "do", "endfor", "while", "endwhile", "repeat", "until", "switch",
-			"case", "default", "endswitch", "solve", "minimize", "maximize", "where", "exists",
-			"forall", "sum", "prod", "min", "max", "ord", "card", "first", "last", "element",
-			"data", "read", "write", "display", "option", "return", "break", "continue",
+			"model", "section", "declaration", "declarationsection", "identifier", "set", "parameter",
+			"elementparameter", "stringparameter", "variable", "elementvariable", "constraint",
+			"mathematicalprogram", "procedure", "function", "index", "subset", "subsetof", "of", "range",
+			"unit", "definition", "body", "comment", "text", "domain", "property", "initialdata",
+			"if", "then", "else", "elseif", "endif", "for", "do", "endfor", "while", "endwhile",
+			"repeat", "until", "switch", "case", "default", "endswitch", "solve", "minimize",
+			"maximize", "where", "exists", "forall", "sum", "prod", "min", "max", "argmin",
+			"argmax", "ord", "card", "first", "last", "element", "data", "read", "write",
+			"display", "option", "return", "break", "continue", "empty", "nonvar", "level",
+			"marginal", "reducedcost", "bound", "programstatus", "solverstatus", "violation",
 			"true", "false", "and", "or", "not", "in", "by", "to", "from", "with", "without"
 		};
 		for (const char* keyword : keywords)
-			langDef.mKeywords.insert(keyword);
+		{
+			std::string normalized_keyword{keyword};
+			for (char& ch : normalized_keyword)
+			{
+				if (ch >= 'a' && ch <= 'z')
+				{
+					ch = static_cast<char>('A' + (ch - 'a'));
+				}
+			}
+			langDef.mKeywords.insert(std::move(normalized_keyword));
+		}
+
+		static const char* const identifiers[] = {
+			"abs", "ceil", "floor", "round", "trunc", "mod", "power", "sqrt", "exp", "log",
+			"sin", "cos", "tan", "asin", "acos", "atan", "formatstring", "stringlength",
+			"substring", "findstring", "tolower", "toupper", "numbertoelement", "elementtonumber",
+			"gmp::instance", "gmp::solution", "gmp::column", "gmp::row"
+		};
+		for (const char* identifier : identifiers)
+		{
+			std::string normalized_identifier{identifier};
+			for (char& ch : normalized_identifier)
+			{
+				if (ch >= 'a' && ch <= 'z')
+				{
+					ch = static_cast<char>('A' + (ch - 'a'));
+				}
+			}
+			Identifier id;
+			id.mDeclaration = "AIMMS built-in";
+			langDef.mIdentifiers.insert(std::make_pair(std::move(normalized_identifier), id));
+		}
 
 		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\"(\\.|[^\"])*\")##", PaletteIndex::String));
 		langDef.mTokenRegexStrings.push_back(std::make_pair<std::string, PaletteIndex>(R"##(\'(\\.|[^\'])*\')##", PaletteIndex::String));
