@@ -999,7 +999,25 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Aimms()
 			"argmax", "ord", "card", "first", "last", "element", "data", "read", "write",
 			"display", "option", "return", "break", "continue", "empty", "nonvar", "level",
 			"marginal", "reducedcost", "bound", "programstatus", "solverstatus", "violation",
-			"true", "false", "and", "or", "not", "in", "by", "to", "from", "with", "without"
+			"true", "false", "and", "or", "not", "in", "by", "to", "from", "with", "without",
+			// Declaration kinds
+			"quantity", "convention", "calendar", "horizon", "macro", "assertion", "file",
+			"database", "databasetable", "databaseprocedure", "activity", "resource", "arc",
+			"node", "uncertaintyvariable", "uncertaintyconstraint", "complementaryvariable",
+			"libraryprefix", "prefix", "module", "librarymodule",
+			// End sentinels
+			"endprocedure", "endfunction", "enddeclaration", "endsection", "endblock",
+			"endmodule", "endlibrarymodule", "enddeclarationsection", "endmodel",
+			// Control / flow
+			"block", "onerror", "raise", "halt", "wait", "goto", "when", "otherwise",
+			// Range / properties
+			"nonnegative", "nonpositive", "free", "integer", "binary", "nosave", "inline",
+			"diagonal", "notstored", "synchronize", "outputonly", "inputonly", "retainable",
+			"storagetype",
+			// Procedure argument modes
+			"input", "output", "inout", "optional", "local", "global",
+			// Set operators / ops
+			"union", "intersection", "setof", "indexrange", "is", "as", "like"
 		};
 		for (const char* keyword : keywords)
 		{
@@ -1018,7 +1036,11 @@ const TextEditor::LanguageDefinition& TextEditor::LanguageDefinition::Aimms()
 			"abs", "ceil", "floor", "round", "trunc", "mod", "power", "sqrt", "exp", "log",
 			"sin", "cos", "tan", "asin", "acos", "atan", "formatstring", "stringlength",
 			"substring", "findstring", "tolower", "toupper", "numbertoelement", "elementtonumber",
-			"gmp::instance", "gmp::solution", "gmp::column", "gmp::row"
+			"gmp::instance", "gmp::solution", "gmp::column", "gmp::row",
+			// Extra math / stats built-ins
+			"sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh", "arctan", "log10", "log2",
+			"pi", "e", "errorf", "normal", "uniform", "random", "intpow", "divmod", "precision",
+			"sign", "factorial", "binomial"
 		};
 		for (const char* identifier : identifiers)
 		{
