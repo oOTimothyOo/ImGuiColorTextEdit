@@ -2,7 +2,7 @@
 
 #include "TextEditor.h"
 #include "imgui.h"
-#include "utilities/imgui_scoped.hpp"
+#include "foundation/imgui/imgui_scoped.hpp"
 #include "vscode/colors.hpp"
 #include <algorithm>
 #include <cctype>

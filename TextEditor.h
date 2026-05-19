@@ -17,7 +17,7 @@
 
 #include <boost/regex.hpp>
 #include "imgui.h"
-#include "utilities/imgui_scoped.hpp"
+#include "foundation/imgui/imgui_scoped.hpp"
 
 class IMGUI_API TextEditor
 {
