@@ -255,6 +255,8 @@ public:
 	inline bool CanUndo() const { return !mReadOnly && mUndoIndex > 0; };
 	inline bool CanRedo() const { return !mReadOnly && mUndoIndex < (int)mUndoBuffer.size(); };
 	void SetKeyboardInputInterceptor(std::function<bool()> callback) { mKeyboardInputInterceptor = std::move(callback); }
+	void SetMouseInputInterceptor(std::function<bool()> callback) { mMouseInputInterceptor = std::move(callback); }
+	void CancelMouseDragState();
 	inline int GetUndoIndex() const { return mUndoIndex; };
 
 	void SetText(const std::string& aText);
@@ -425,6 +427,15 @@ public:
 
 	// Convert screen position to text coordinates (for hover tooltips, etc.)
 	Coordinates ScreenPosToCoordinates(const ImVec2& aPosition, bool* isOverLineNumber = nullptr) const;
+	struct TextHitTestResult
+	{
+		Coordinates mCoordinates{};
+		int mCharacterIndex{-1};
+		int mVisualLine{-1};
+		ImVec2 mGlyphMin{};
+		ImVec2 mGlyphMax{};
+	};
+	[[nodiscard]] std::optional<TextHitTestResult> HitTestText(const ImVec2& aPosition) const;
 	// Convert text coordinates to screen position (for inlay hints, overlays, etc.)
 	ImVec2 CoordinatesToScreenPos(const Coordinates& aPosition) const;
 	// Line height in pixels for the current font/spacing.
@@ -782,6 +793,7 @@ private:
 	float mLineSpacing = 1.0f;
 	bool mReadOnly = false;
 	std::function<bool()> mKeyboardInputInterceptor{};
+	std::function<bool()> mMouseInputInterceptor{};
 	bool mAutoIndent = true;
 	bool mShowWhitespaces = true;
 	bool mShowLineNumbers = true;
