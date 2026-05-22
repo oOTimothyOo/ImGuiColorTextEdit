@@ -2484,6 +2484,58 @@ TextEditor::Coordinates TextEditor::ScreenPosToCoordinates(const ImVec2& aPositi
 	return out;
 }
 
+std::optional<TextEditor::TextHitTestResult> TextEditor::HitTestText(const ImVec2& aPosition) const
+{
+	if (mCharAdvance.x <= 0.0f || mCharAdvance.y <= 0.0f || mLines.empty())
+		return std::nullopt;
+
+	const ImVec2 local(aPosition.x - mEditorScreenPos.x, aPosition.y - mEditorScreenPos.y);
+	if (local.x < mTextStart || local.y < 0.0f)
+		return std::nullopt;
+	if (mContentWidth > 0.0f && local.x >= mContentWidth)
+		return std::nullopt;
+	if (mContentHeight > 0.0f && local.y >= mContentHeight)
+		return std::nullopt;
+
+	const float text_x = local.x + mScrollX - mTextStart;
+	const float text_y = local.y + mScrollY;
+	if (text_x < 0.0f || text_y < 0.0f)
+		return std::nullopt;
+
+	const int visual_line = static_cast<int>(std::floor(text_y / mCharAdvance.y));
+	const int visual_line_count = GetVisualLineCount();
+	if (visual_line < 0 || visual_line >= visual_line_count)
+		return std::nullopt;
+
+	const int doc_line = GetDocumentLineForVisualLine(visual_line);
+	if (doc_line < 0 || doc_line >= static_cast<int>(mLines.size()))
+		return std::nullopt;
+
+	const int segment_start = GetVisualLineStartColumn(visual_line);
+	const int segment_end = GetVisualLineEndColumn(visual_line);
+	const int column_in_segment = static_cast<int>(std::floor(text_x / mCharAdvance.x));
+	const int column = segment_start + column_in_segment;
+	if (column < segment_start || column >= segment_end)
+		return std::nullopt;
+
+	const int character_index = ColumnToCharacterIndex(doc_line, column);
+	if (character_index < 0 || character_index >= GetLineLength(doc_line))
+		return std::nullopt;
+
+	const int char_start_column = CharacterIndexToColumn(doc_line, character_index);
+	const int char_end_column = CharacterIndexToColumn(doc_line, character_index + 1);
+	const ImVec2 glyph_min = CoordinatesToScreenPos(Coordinates{doc_line, char_start_column});
+	const float glyph_width = std::max(mCharAdvance.x, static_cast<float>(char_end_column - char_start_column) * mCharAdvance.x);
+
+	return TextHitTestResult{
+		.mCoordinates = Coordinates{doc_line, column},
+		.mCharacterIndex = character_index,
+		.mVisualLine = visual_line,
+		.mGlyphMin = glyph_min,
+		.mGlyphMax = ImVec2(glyph_min.x + glyph_width, glyph_min.y + mCharAdvance.y),
+	};
+}
+
 ImVec2 TextEditor::CoordinatesToScreenPos(const Coordinates& aPosition) const
 {
 	Coordinates coords = SanitizeCoordinates(aPosition);
@@ -2990,6 +3042,11 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 void TextEditor::HandleMouseInputs()
 {
 	ImGuiIO& io = ImGui::GetIO();
+	if (mMouseInputInterceptor && mMouseInputInterceptor())
+	{
+		CancelMouseDragState();
+		return;
+	}
 	auto shift = io.KeyShift;
 	auto ctrl = io.KeyCtrl || io.KeySuper;
 	auto alt = io.KeyAlt;
@@ -3151,6 +3208,12 @@ void TextEditor::HandleMouseInputs()
 			}
 		}
 	}
+}
+
+void TextEditor::CancelMouseDragState()
+{
+	mPanning = false;
+	mDraggingSelection = false;
 }
 
 void TextEditor::UpdateViewVariables(float aScrollX, float aScrollY)
