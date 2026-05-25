@@ -74,6 +74,20 @@ public:
             : label(std::move(lbl)), insert_text(label), filter_text(label) {}
     };
 
+    enum class AsyncStatusKind
+    {
+        Idle,
+        Loading,
+        Empty,
+        Error
+    };
+
+    struct AsyncStatus
+    {
+        AsyncStatusKind kind = AsyncStatusKind::Idle;
+        std::string message;
+    };
+
     /**
      * @brief Interface for completion providers
      *
@@ -103,6 +117,10 @@ public:
          * @return Characters that should trigger completion
          */
         [[nodiscard]] virtual std::vector<char> GetTriggerCharacters() const = 0;
+
+        [[nodiscard]] virtual AsyncStatus GetAsyncStatus() const { return {}; }
+
+        virtual void CancelAsyncRequests() {}
     };
 
     struct Config
@@ -168,10 +186,14 @@ public:
      */
     [[nodiscard]] bool IsActive() const { return is_active_; }
 
+    [[nodiscard]] AsyncStatus GetCurrentAsyncStatus() const { return async_status_; }
+
     /**
      * @brief Close the autocomplete popup
      */
     void Close();
+
+    void CancelAsyncRequests();
 
     /**
      * @brief Accept the currently selected completion
@@ -194,6 +216,7 @@ private:
     bool is_active_ = false;
     std::vector<CompletionItem> current_items_;
     std::vector<CompletionItem> filtered_items_;
+    AsyncStatus async_status_{};
     int selected_index_ = 0;
     std::string filter_text_;
 
