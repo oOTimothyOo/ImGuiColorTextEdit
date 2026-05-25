@@ -27,6 +27,26 @@ void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char
 
     // Collect completions from all providers
     current_items_.clear();
+    async_status_ = {};
+
+    auto merge_status = [](AsyncStatus current, const AsyncStatus& next) {
+        const auto priority = [](AsyncStatusKind kind) {
+            switch (kind)
+            {
+                case AsyncStatusKind::Error: return 3;
+                case AsyncStatusKind::Loading: return 2;
+                case AsyncStatusKind::Empty: return 1;
+                case AsyncStatusKind::Idle: return 0;
+            }
+            return 0;
+        };
+
+        if (priority(next.kind) > priority(current.kind))
+        {
+            return next;
+        }
+        return current;
+    };
 
     for (const auto& provider : providers_)
     {
@@ -34,14 +54,24 @@ void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char
         current_items_.insert(current_items_.end(),
                             std::make_move_iterator(items.begin()),
                             std::make_move_iterator(items.end()));
+        async_status_ = merge_status(async_status_, provider->GetAsyncStatus());
     }
 
     if (current_items_.empty())
     {
+        if (async_status_.kind != AsyncStatusKind::Idle)
+        {
+            filtered_items_.clear();
+            selected_index_ = 0;
+            filter_text_.clear();
+            is_active_ = true;
+            return;
+        }
         Close();
         return;
     }
 
+    async_status_ = {};
     std::sort(current_items_.begin(), current_items_.end(),
              [](const CompletionItem& a, const CompletionItem& b) {
                  return a.priority > b.priority;
@@ -55,7 +85,7 @@ void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char
 
 bool TextEditorAutocomplete::Render(TextEditor& editor)
 {
-    if (!is_active_ || filtered_items_.empty())
+    if (!is_active_)
         return false;
 
     ImGui::SetNextWindowSize(ImVec2(config_.popup_width, 0), ImGuiCond_Always);
@@ -75,6 +105,25 @@ bool TextEditorAutocomplete::Render(TextEditor& editor)
         ImGuiWindowFlags_AlwaysAutoResize;
 
     if (auto window = imgui::scoped::Window("##autocomplete", nullptr, window_flags)) {
+        if (filtered_items_.empty())
+        {
+            switch (async_status_.kind)
+            {
+                case AsyncStatusKind::Loading:
+                    ImGui::TextDisabled("%s", async_status_.message.empty() ? "Loading completions..." : async_status_.message.c_str());
+                    break;
+                case AsyncStatusKind::Empty:
+                    ImGui::TextDisabled("%s", async_status_.message.empty() ? "No completions" : async_status_.message.c_str());
+                    break;
+                case AsyncStatusKind::Error:
+                    ImGui::TextDisabled("%s", async_status_.message.empty() ? "Completion failed" : async_status_.message.c_str());
+                    break;
+                case AsyncStatusKind::Idle:
+                    break;
+            }
+            return false;
+        }
+
         // Render list of items
         ImVec2 const list_size(0.0f, std::min(config_.popup_max_height,
                          static_cast<float>(filtered_items_.size()) * ImGui::GetTextLineHeightWithSpacing()));
@@ -166,6 +215,16 @@ void TextEditorAutocomplete::Close()
     filtered_items_.clear();
     selected_index_ = 0;
     filter_text_.clear();
+    async_status_ = {};
+}
+
+void TextEditorAutocomplete::CancelAsyncRequests()
+{
+    for (const auto& provider : providers_)
+    {
+        provider->CancelAsyncRequests();
+    }
+    Close();
 }
 
 std::optional<TextEditorAutocomplete::CompletionItem>
