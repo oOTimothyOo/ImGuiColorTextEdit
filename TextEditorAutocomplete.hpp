@@ -10,7 +10,9 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -66,6 +68,7 @@ public:
         CompletionItemKind kind = CompletionItemKind::Text;
         int priority = 0;                     // For sorting (higher = better)
         std::string filter_text;              // Text used for filtering (default: label)
+        std::string sort_text;                // LSP sortText: server-side ranking (lower = higher rank, lex compare)
         int replace_start_char = -1;          // Replacement range start on trigger line
         int replace_end_char = -1;            // Replacement range end on trigger line
 
@@ -73,6 +76,13 @@ public:
         explicit CompletionItem(std::string lbl)
             : label(std::move(lbl)), insert_text(label), filter_text(label) {}
     };
+
+    /// Pure ranking score for a (item, filter) pair. Higher is better.
+    /// Combines case-sensitive/insensitive prefix match, length penalty for
+    /// long labels with the same prefix match, and kind bias (functions and
+    /// methods slightly above variables, which sit above plain text / snippets).
+    /// Exposed for unit testing.
+    [[nodiscard]] static auto LocalityScore(const CompletionItem& item, std::string_view filter) -> int;
 
     enum class AsyncStatusKind
     {
@@ -137,6 +147,14 @@ public:
 
         // Trigger characters (in addition to provider-specific ones)
         std::vector<char> global_trigger_chars = {'.', ':', '>'};
+
+        // Commit characters: typing any of these while the popup is open with
+        // a valid selection commits the selected item AND lets the character
+        // type into the editor afterwards. Empty list disables the behavior.
+        // Defaults are conservative C-like token enders that rarely appear
+        // mid-identifier; identifier chars (letters, digits, _) are NEVER
+        // commit chars regardless of this list.
+        std::vector<char> commit_chars = {'.', ';', '(', ',', '=', ':', '>', '<'};
     };
 
     TextEditorAutocomplete() : config_() {}
@@ -180,6 +198,30 @@ public:
      * @return true if input was handled
      */
     [[nodiscard]] bool HandleKeyboard();
+
+    /**
+     * @brief If a commit character is queued for the editor and an item is
+     * selected, accept the item but DO NOT consume the character — the caller
+     * should return false from its keyboard interceptor so the character flows
+     * through to the editor normally (and gets typed right after the inserted
+     * completion). Returns true if a commit happened.
+     */
+    [[nodiscard]] bool TryCommitOnCharacter(TextEditor& editor);
+
+    /**
+     * @brief Decide whether the head of @p input_chars should trigger a
+     * commit. Pure helper, exposed for unit testing. Returns true iff:
+     *   1. is_active && there's a valid selection,
+     *   2. AND scanning the input queue front-to-back: an identifier char
+     *      (alnum/_) seen before any commit char vetoes the commit (those
+     *      identifier chars should keep filtering the popup),
+     *   3. AND a char in @p commit_chars appears in the queue.
+     */
+    [[nodiscard]] static auto ShouldCommitFromInputQueue(
+        bool is_active,
+        bool has_selection,
+        std::span<const ImWchar> input_chars,
+        std::span<const char> commit_chars) -> bool;
 
     /**
      * @brief Check if autocomplete is currently active

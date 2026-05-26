@@ -44,6 +44,17 @@ struct TextEditor::RegexList {
 // --------------------------------------- //
 // ------------- Exposed API ------------- //
 
+auto TextEditor::GetInputModifiers(const ImGuiIO& io) noexcept -> InputModifiers
+{
+	return InputModifiers{
+		.alt = io.KeyAlt,
+		.shortcut = io.KeyCtrl,
+		.shift = io.KeyShift,
+		.platform_control = io.KeySuper,
+		.word_move = io.ConfigMacOSXBehaviors ? io.KeyAlt : io.KeyCtrl,
+	};
+}
+
 TextEditor::TextEditor()
     : mRegexList(std::make_shared<RegexList>())
 {
@@ -2896,15 +2907,16 @@ void TextEditor::HandleKeyboardInputs(bool aParentIsFocused)
 		//ImGui::CaptureKeyboardFromApp(true);
 
 		ImGuiIO& io = ImGui::GetIO();
+		const auto modifiers = GetInputModifiers(io);
 		auto isOSX = io.ConfigMacOSXBehaviors;
-		auto alt = io.KeyAlt;
-		auto ctrl = io.KeyCtrl || io.KeySuper;
-		auto shift = io.KeyShift;
-		auto super = io.KeySuper;
+		auto alt = modifiers.alt;
+		auto ctrl = modifiers.shortcut;
+		auto shift = modifiers.shift;
+		auto super = modifiers.platform_control;
 
 		auto isShortcut = ctrl && !alt && !shift && !super;
 		auto isShiftShortcut = ctrl && shift && !alt && !super;
-		auto isWordmoveKey = isOSX ? alt : ctrl;
+		auto isWordmoveKey = modifiers.word_move;
 		auto isAltOnly = alt && !ctrl && !shift && !super;
 		auto isCtrlOnly = ctrl && !alt && !shift && !super;
 		auto isShiftOnly = shift && !alt && !ctrl && !super;
@@ -3047,9 +3059,10 @@ void TextEditor::HandleMouseInputs()
 		CancelMouseDragState();
 		return;
 	}
-	auto shift = io.KeyShift;
-	auto ctrl = io.KeyCtrl || io.KeySuper;
-	auto alt = io.KeyAlt;
+	const auto modifiers = GetInputModifiers(io);
+	auto shift = modifiers.shift;
+	auto ctrl = modifiers.shortcut;
+	auto alt = modifiers.alt;
 
 	/*
 	Pan with middle mouse button

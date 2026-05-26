@@ -168,6 +168,24 @@ public:
 		}
 	};
 
+	struct InputModifiers
+	{
+		bool alt{false};
+		bool shortcut{false};
+		bool shift{false};
+		bool platform_control{false};
+		bool word_move{false};
+	};
+
+	/**
+	 * @brief Return editor modifier semantics from ImGui's already-normalized IO state.
+	 *
+	 * ImGui maps `KeyCtrl` to the platform shortcut modifier: Ctrl on Windows/Linux,
+	 * Cmd on macOS. On macOS physical Ctrl is reported as `KeySuper`, so editor
+	 * shortcut and Ctrl-click behavior must not OR the two together.
+	 */
+	[[nodiscard]] static auto GetInputModifiers(const ImGuiIO& io) noexcept -> InputModifiers;
+
 	inline void SetReadOnlyEnabled(bool aValue) { mReadOnly = aValue; }
 	inline bool IsReadOnlyEnabled() const { return mReadOnly; }
 	inline void SetAutoIndentEnabled(bool aValue) { mAutoIndent = aValue; }
