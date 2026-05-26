@@ -1,5 +1,110 @@
 #include "TextEditorAutocomplete.hpp"
 
+namespace {
+
+[[nodiscard]] auto kind_bias(TextEditorAutocomplete::CompletionItemKind k) -> int {
+    using K = TextEditorAutocomplete::CompletionItemKind;
+    switch (k) {
+        case K::Function:
+        case K::Method:
+        case K::Constructor:
+            return 4;
+        case K::Variable:
+        case K::Field:
+        case K::Property:
+        case K::Constant:
+            return 3;
+        case K::Class:
+        case K::Struct:
+        case K::Interface:
+        case K::Enum:
+        case K::EnumMember:
+            return 3;
+        case K::Module:
+        case K::TypeParameter:
+        case K::Reference:
+            return 2;
+        case K::Keyword:
+        case K::Snippet:
+            return 1;
+        case K::Text:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
+[[nodiscard]] auto starts_with_ci(std::string_view text, std::string_view prefix) -> bool {
+    if (text.size() < prefix.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < prefix.size(); ++i) {
+        const auto a = static_cast<unsigned char>(text[i]);
+        const auto b = static_cast<unsigned char>(prefix[i]);
+        if (std::tolower(a) != std::tolower(b)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] auto starts_with(std::string_view text, std::string_view prefix) -> bool {
+    return text.size() >= prefix.size() && text.compare(0, prefix.size(), prefix) == 0;
+}
+
+} // namespace
+
+auto TextEditorAutocomplete::LocalityScore(const CompletionItem& item, std::string_view filter) -> int {
+    // Bigger = ranks higher in the sort. Combines:
+    //   * Case-insensitive prefix match (large boost)
+    //   * Case-sensitive prefix match on top (smaller bonus — vector > Vector for "v")
+    //   * Length penalty so a longer label with the same prefix loses to a shorter one
+    //     (vector beats vector_view_iterator_base_t for "vec")
+    //   * Kind bias (functions/methods slightly above variables, etc.)
+    const std::string_view text = item.filter_text.empty() ? std::string_view{item.label} : std::string_view{item.filter_text};
+    int score = 0;
+    if (!filter.empty() && starts_with_ci(text, filter)) {
+        score += 1000;
+        if (starts_with(text, filter)) {
+            score += 200;
+        }
+        // Length penalty caps at 50 to avoid wildly demoting long but valid matches.
+        const std::size_t extra_len = text.size() - filter.size();
+        score -= static_cast<int>(std::min<std::size_t>(extra_len, 50U));
+    }
+    score += kind_bias(item.kind);
+    return score;
+}
+
+auto TextEditorAutocomplete::ShouldCommitFromInputQueue(
+    bool is_active,
+    bool has_selection,
+    std::span<const ImWchar> input_chars,
+    std::span<const char> commit_chars) -> bool {
+    if (!is_active || !has_selection || commit_chars.empty()) {
+        return false;
+    }
+    for (const ImWchar wc : input_chars) {
+        if (wc < 32 || wc >= 128) {
+            // Non-ASCII / control character — ignore for commit decisions, but
+            // also don't let it veto a later commit char.
+            continue;
+        }
+        const auto ch = static_cast<char>(wc);
+        const auto uch = static_cast<unsigned char>(ch);
+        const bool is_ident = std::isalnum(uch) != 0 || ch == '_';
+        if (is_ident) {
+            // Identifier char arrived before any commit char this frame —
+            // those chars should extend the filter, not trigger a commit.
+            return false;
+        }
+        if (std::find(commit_chars.begin(), commit_chars.end(), ch) != commit_chars.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TextEditorAutocomplete::RegisterProvider(std::unique_ptr<ICompletionProvider> provider)
 {
     if (provider)
@@ -72,9 +177,16 @@ void TextEditorAutocomplete::Trigger(const TextEditor& editor, char trigger_char
     }
 
     async_status_ = {};
+    // Initial sort: no filter prefix yet, so locality reduces to kind bias.
+    // Tie-break by LSP sort_text (lexicographic asc), then label asc.
     std::sort(current_items_.begin(), current_items_.end(),
              [](const CompletionItem& a, const CompletionItem& b) {
-                 return a.priority > b.priority;
+                 if (a.priority != b.priority) return a.priority > b.priority;
+                 const int la = LocalityScore(a, std::string_view{});
+                 const int lb = LocalityScore(b, std::string_view{});
+                 if (la != lb) return la > lb;
+                 if (a.sort_text != b.sort_text) return a.sort_text < b.sort_text;
+                 return a.label < b.label;
              });
 
     filter_text_.clear();
@@ -160,6 +272,25 @@ bool TextEditorAutocomplete::Render(TextEditor& editor)
     }
 
     return item_selected;
+}
+
+bool TextEditorAutocomplete::TryCommitOnCharacter(TextEditor& editor)
+{
+    if (!is_active_)
+        return false;
+    if (filtered_items_.empty())
+        return false;
+    if (selected_index_ < 0 || selected_index_ >= static_cast<int>(filtered_items_.size()))
+        return false;
+
+    ImGuiIO& io = ImGui::GetIO();
+    const std::span<const ImWchar> input_chars{io.InputQueueCharacters.Data, static_cast<std::size_t>(io.InputQueueCharacters.Size)};
+    const std::span<const char> commit_chars{config_.commit_chars.data(), config_.commit_chars.size()};
+    if (!ShouldCommitFromInputQueue(/*is_active=*/true, /*has_selection=*/true, input_chars, commit_chars))
+        return false;
+
+    (void)AcceptSelected(editor);
+    return true;
 }
 
 bool TextEditorAutocomplete::HandleKeyboard()
@@ -281,14 +412,21 @@ void TextEditorAutocomplete::FilterCompletions(const std::string& filter)
         }
     }
 
-    // Sort by match score
+    // 4-tier sort:
+    //   1. Fuzzy match score (whichever item matches the filter better)
+    //   2. Locality (prefix match strength + shorter labels + kind bias)
+    //   3. LSP sort_text (server-side preference, lex asc)
+    //   4. Label alphabetic (stable tie-break)
     std::sort(filtered_items_.begin(), filtered_items_.end(),
              [this, &filter](const CompletionItem& a, const CompletionItem& b) {
-                 int score_a = GetFuzzyMatchScore(a, filter);
-                 int score_b = GetFuzzyMatchScore(b, filter);
-                 if (score_a != score_b)
-                     return score_a > score_b;
-                 return a.priority > b.priority;
+                 const int score_a = GetFuzzyMatchScore(a, filter);
+                 const int score_b = GetFuzzyMatchScore(b, filter);
+                 if (score_a != score_b) return score_a > score_b;
+                 const int loc_a = LocalityScore(a, filter);
+                 const int loc_b = LocalityScore(b, filter);
+                 if (loc_a != loc_b) return loc_a > loc_b;
+                 if (a.sort_text != b.sort_text) return a.sort_text < b.sort_text;
+                 return a.label < b.label;
              });
 
     selected_index_ = 0;
