@@ -250,9 +250,24 @@ public:
 	 * Preserves column position when possible and mirrors single-line selections.
 	 */
 	void AddCursorBelow();
+	/**
+	 * @brief First call selects the word at the cursor (or current selection);
+	 *        subsequent calls add a new cursor at the next matching occurrence.
+	 *        Mirrors the Ctrl+D shortcut.
+	 */
+	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
 	bool AnyCursorHasSelection() const;
 	bool AllCursorsHaveSelection() const;
 	void ClearExtraCursors();
+	/**
+	 * @brief Number of active cursors (>= 1). Lets external code decide
+	 *        whether ClearExtraCursors() would actually collapse anything,
+	 *        e.g. for an Escape handler that should only consume the key
+	 *        when multiple cursors are present.
+	 */
+	[[nodiscard]] inline int GetCursorCount() const {
+		return static_cast<int>(mState.mCursors.size());
+	}
 	void ClearSelections();
 	void SetCursorPosition(int aLine, int aCharIndex);
 	inline void GetCursorPosition(int& outLine, int& outColumn) const
@@ -711,7 +726,6 @@ private:
 	void Delete(bool aWordMode = false, const EditorState* aEditorState = nullptr);
 
 	void SelectNextOccurrenceOf(const char* aText, int aTextSize, int aCursor = -1, bool aCaseSensitive = true);
-	void AddCursorForNextOccurrence(bool aCaseSensitive = true);
 	void AddCursorsWithLineOffset(int aLineOffset);
 	bool FindNextOccurrence(const char* aText, int aTextSize, const Coordinates& aFrom, Coordinates& outStart, Coordinates& outEnd, bool aCaseSensitive = true);
 	bool FindMatchingBracket(int aLine, int aCharIndex, Coordinates& out);
